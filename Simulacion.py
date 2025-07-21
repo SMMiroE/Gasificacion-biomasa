@@ -164,9 +164,9 @@ st.markdown(f"""
 
 st.markdown("---")
 
-## 💡 Balances de Materia y Energía Utilizados para el Cálculo
+## 💡 Ecuaciones utilizadas
 
-with st.expander("Ver Balances de Materia y Energía"):
+with st.expander("Ecuaciones utilizadas"): # <-- Texto cambiado aquí
     st.markdown("""
     Aquí se detallan las ecuaciones principales utilizadas para los cálculos de la simulación.
     """)

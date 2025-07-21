@@ -4,7 +4,7 @@ import numpy as np
 
 st.set_page_config(layout="centered", page_title="Simulación: Biomasa a Electricidad")
 
-# --- Título y Descripción (mantener) ---
+# --- Título y Descripción ---
 st.markdown("""
     <style>
     .big-title {
@@ -51,16 +51,15 @@ st.markdown("""
     <p class="note">Ajusta los parámetros para ver cómo la biomasa se convierte en electricidad a través del syngas. Esta es una simulación conceptual y simplificada.</p>
 """, unsafe_allow_html=True)
 
-# --- Diagrama del Sistema (Placeholder o tu imagen personalizada) ---
-# Si aún no tienes tu imagen personalizada, puedes usar un placeholder temporal
-# o el enlace que te di anteriormente (si funcionaba para ti).
+# --- Diagrama del Sistema ---
+# Usamos un placeholder genérico. Si tienes tu propia imagen, reemplaza la URL.
 st.image("https://placehold.co/600x300/e0e0e0/555555?text=Diagrama+del+Sistema",
          caption="Diagrama del Sistema de Gasificación de Biomasa",
-         use_container_width=True) # Usamos use_container_width aquí
+         use_container_width=True) # Actualizado: use_column_width ha sido deprecado
 
 st.markdown("## Parámetros de Entrada")
 
-# --- Parámetros de Entrada con Campos Numéricos (mantener) ---
+# --- Parámetros de Entrada con Campos Numéricos ---
 biomass_flow = st.number_input(
     "Flujo de Biomasa (kg/h):",
     min_value=50,
@@ -112,7 +111,7 @@ engine_efficiency = st.number_input(
 hours_operated = st.number_input(
     "Horas de Operación:",
     min_value=1,
-    max_value=24,
+    max_value=24, # O puedes cambiar a 8760 para operación anual
     value=8,
     step=1,
     help="Número de horas que el sistema opera para el cálculo total."
@@ -122,7 +121,7 @@ st.markdown("---") # Línea divisoria
 
 st.markdown("## Resultados de la Simulación")
 
-# --- Realizar los cálculos de la simulación (mantener) ---
+# --- Realizar los cálculos de la simulación ---
 total_biomass_consumed = biomass_flow * hours_operated
 total_biomass_energy = total_biomass_consumed * biomass_energy
 energy_in_syngas = total_biomass_energy * gasification_efficiency
@@ -136,17 +135,20 @@ electric_energy_generated_kwh = electric_energy_generated_mj * 0.2778  # Factor 
 # Evitar división por cero si las horas de operación son cero
 average_power_output = electric_energy_generated_kwh / hours_operated if hours_operated > 0 else 0
 
-# --- Cálculo de CO2 Producido (mantener) ---
+# --- Cálculo de CO2 Producido ---
+# Asunciones para la composición del syngas (volumétrica, base seca, libre de N2 y CO2 inicial)
 co_percentage = 0.20
 ch4_percentage = 0.03
+
 molar_volume_stp = 22.4
 co2_molar_mass = 44
+
 moles_co = (volume_syngas_produced * co_percentage) / molar_volume_stp
 moles_ch4 = (volume_syngas_produced * ch4_percentage) / molar_volume_stp
 moles_co2_produced = moles_co + moles_ch4
 mass_co2_produced = moles_co2_produced * co2_molar_mass
 
-# --- Mostrar los resultados calculados (mantener) ---
+# --- Mostrar los resultados calculados ---
 st.markdown(f"""
     <div class="results-container">
         <p class="results-p">Biomasa Consumida (total): <strong class="results-strong">{total_biomass_consumed:.2f}</strong> kg</p>
@@ -160,14 +162,10 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
----
+st.markdown("---")
 
-## 💡 Balance de Materia y Energía Utilizados para el Cálculo
+## 💡 Balances de Materia y Energía Utilizados para el Cálculo
 
-Para mostrar las ecuaciones en una pestaña colapsable (`st.expander`), lo haremos así:
-
-```python
-# --- Nueva sección para Balances de Materia y Energía ---
 with st.expander("Ver Balances de Materia y Energía"):
     st.markdown("""
     Aquí se detallan las ecuaciones principales utilizadas para los cálculos de la simulación.
@@ -185,7 +183,6 @@ with st.expander("Ver Balances de Materia y Energía"):
     * $t_{\\text{operación}}$ son las horas de operación (h).
     """)
 
-    # Podemos añadir más ecuaciones aquí:
     st.subheader("2. Energía en el Syngas")
     st.latex(r'''
         H_{\text{Syngas}} = H_{\text{Biomasa}} \times \eta_{\text{gasificación}}

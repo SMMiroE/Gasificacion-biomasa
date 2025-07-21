@@ -166,7 +166,7 @@ st.markdown("---")
 
 ## 💡 Ecuaciones utilizadas
 
-with st.expander("Ecuaciones utilizadas"): # <-- Texto cambiado aquí
+with st.expander("Ecuaciones utilizadas"):
     st.markdown("""
     Aquí se detallan las ecuaciones principales utilizadas para los cálculos de la simulación.
     """)
@@ -231,6 +231,14 @@ with st.expander("Ecuaciones utilizadas"): # <-- Texto cambiado aquí
     """)
 
     st.subheader("6. Emisiones de $\\text{CO}_2$ (basado en combustión de Syngas)")
+    st.markdown("Las emisiones de $\\text{CO}_2$ se calculan a partir de la combustión completa del $\\text{CO}$ y $\\text{CH}_4$ presentes en el syngas. Las reacciones estequiométricas son:")
+    st.latex(r'''
+        \text{CO} + \frac{1}{2} \text{O}_2 \rightarrow \text{CO}_2
+    ''')
+    st.latex(r'''
+        \text{CH}_4 + 2 \text{O}_2 \rightarrow \text{CO}_2 + 2 \text{H}_2\text{O}
+    ''')
+    st.markdown("Basado en estas reacciones, 1 mol de $\\text{CO}$ produce 1 mol de $\\text{CO}_2$, y 1 mol de $\\text{CH}_4$ también produce 1 mol de $\\text{CO}_2$.")
     st.latex(r'''
         \text{moles}_{\text{CO}} = \frac{V_{\text{Syngas}} \times \text{frac}_{\text{CO}}}{\text{Volumen Molar}}
     ''')

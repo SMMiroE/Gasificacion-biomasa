@@ -1,10 +1,10 @@
 import streamlit as st
-import pandas as pd # Aunque no se usa directamente en esta versión, es útil para datos
-import numpy as np  # Para cálculos numéricos
+import pandas as pd
+import numpy as np
 
 st.set_page_config(layout="centered", page_title="Simulación: Biomasa a Electricidad")
 
-# --- Título y Descripción ---
+# --- Título y Descripción (mantener) ---
 st.markdown("""
     <style>
     .big-title {
@@ -46,91 +46,98 @@ st.markdown("""
         font-weight: 700;
         font-size: 1.2em;
     }
-    .diagram-img {
-        max-width: 100%;
-        height: auto;
-        border: 2px solid #a0aec0;
-        border-radius: 10px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        /* No se puede aplicar @keyframes directamente en Markdown/HTML de Streamlit
-           sin usar st.components.v1.html y CSS incrustado completo,
-           así que se omite la animación de pulso por simplicidad en este contexto. */
-    }
     </style>
     <h1 class="big-title">🌱 Simulación: Biomasa a Electricidad ⚡</h1>
     <p class="note">Ajusta los parámetros para ver cómo la biomasa se convierte en electricidad a través del syngas. Esta es una simulación conceptual y simplificada.</p>
 """, unsafe_allow_html=True)
 
-# --- Diagrama del Sistema ---
-st.image("https://placehold.co/600x300/e0e0e0/555555?text=Diagrama+del+Sistema",
-         caption="Diagrama del Sistema de Gasificación de Biomasa",
-         use_column_width=True)
-
+# --- Contenedor principal para organizar el diagrama y los parámetros ---
 st.markdown("## Parámetros de Entrada")
 
-# --- Parámetros de Entrada con Sliders ---
-biomass_flow = st.slider(
-    "Flujo de Biomasa (kg/h):",
-    min_value=50,
-    max_value=500,
-    value=100,
-    step=10,
-    help="Cantidad de biomasa alimentada al gasificador por hora."
-)
+# Puedes usar un contenedor para agrupar visualmente esta sección
+with st.container(border=True):
+    st.markdown("### Diagrama del Sistema y Parámetros")
 
-biomass_energy = st.slider(
-    "Poder Calorífico Biomasa (MJ/kg):",
-    min_value=15.0,
-    max_value=25.0,
-    value=18.0,
-    step=0.5,
-    format="%.1f",
-    help="Energía contenida por unidad de masa de biomasa (PCI)."
-)
+    # Usamos columnas para colocar los parámetros alrededor del diagrama.
+    # Los ratios (ej. [0.8, 3, 1]) definen el ancho relativo de cada columna.
+    # Ajusta estos valores para que se vea bien con tu diagrama.
+    col_params_izq, col_diagrama, col_params_der = st.columns([0.9, 3, 1.2]) # Ajusta los anchos aquí
 
-gasification_efficiency = st.slider(
-    "Eficiencia de Gasificación (%):",
-    min_value=50,
-    max_value=85,
-    value=70,
-    step=1,
-    help="Porcentaje de la energía de la biomasa convertida en energía en el syngas."
-) / 100.0 # Convertir a decimal
+    with col_params_izq:
+        st.subheader("Entrada de Biomasa")
+        biomass_flow = st.number_input(
+            "Flujo (kg/h):",
+            min_value=50,
+            max_value=500,
+            value=100,
+            step=10,
+            help="Cantidad de biomasa alimentada al gasificador por hora."
+        )
+        biomass_energy = st.number_input(
+            "PCI (MJ/kg):",
+            min_value=15.0,
+            max_value=25.0,
+            value=18.0,
+            step=0.5,
+            format="%.1f",
+            help="Poder calorífico inferior de la biomasa."
+        )
+        # Puedes añadir otros inputs aquí si pertenecen a la fase de entrada de biomasa
 
-syngas_calorific_value = st.slider(
-    "Poder Calorífico Syngas (MJ/Nm³):",
-    min_value=3.0,
-    max_value=7.0,
-    value=5.0,
-    step=0.1,
-    format="%.1f",
-    help="Energía contenida por unidad de volumen normal de syngas (PCI)."
-)
+    with col_diagrama:
+        # Asegúrate de que tu archivo de imagen 'image_3c55b6.png' esté en la misma carpeta que tu script
+        st.image("image_3c55b6.png",
+                 caption="Diagrama del Proceso de Conversión",
+                 use_container_width=True) # Usamos use_container_width según la advertencia
 
-engine_efficiency = st.slider(
-    "Eficiencia Motor-Generador (%):",
-    min_value=20.0,
-    max_value=45.0,
-    value=30.0,
-    step=0.5,
-    format="%.1f",
-    help="Porcentaje de la energía del syngas convertida en electricidad."
-) / 100.0 # Convertir a decimal
+    with col_params_der:
+        st.subheader("Proceso y Salida")
+        syngas_calorific_value = st.number_input(
+            "PCI Syngas (MJ/Nm³):",
+            min_value=3.0,
+            max_value=7.0,
+            value=5.0,
+            step=0.1,
+            format="%.1f",
+            help="Poder calorífico inferior del syngas."
+        )
+        engine_efficiency = st.number_input(
+            "Eficiencia Motor-Gen (%):",
+            min_value=20.0,
+            max_value=45.0,
+            value=30.0,
+            step=0.5,
+            format="%.1f",
+            help="Porcentaje de la energía del syngas convertida en electricidad."
+        )
+        # Puedes añadir otros inputs aquí si pertenecen a la fase de salida
 
-hours_operated = st.slider(
-    "Horas de Operación:",
-    min_value=1,
-    max_value=24,
-    value=8,
-    step=1,
-    help="Número de horas que el sistema opera para el cálculo total."
-)
+    # Parámetros que afectan a todo el sistema o que no caben bien en los lados
+    st.subheader("Eficiencias y Operación General")
+    gasification_efficiency = st.number_input(
+        "Eficiencia de Gasificación (%):",
+        min_value=50,
+        max_value=85,
+        value=70,
+        step=1,
+        help="Porcentaje de la energía de la biomasa convertida en energía en el syngas."
+    ) / 100.0 # Convertir a decimal
+
+    hours_operated = st.number_input(
+        "Horas de Operación (h):",
+        min_value=1,
+        max_value=8760, # Un año completo tiene 8760 horas
+        value=8,
+        step=1,
+        help="Número de horas que el sistema opera para el cálculo total (ej. diario, anual)."
+    )
+
 
 st.markdown("---") # Línea divisoria
 
 st.markdown("## Resultados de la Simulación")
 
-# --- Realizar los cálculos de la simulación ---
+# --- Realizar los cálculos de la simulación (mantener lo mismo) ---
 total_biomass_consumed = biomass_flow * hours_operated
 total_biomass_energy = total_biomass_consumed * biomass_energy
 energy_in_syngas = total_biomass_energy * gasification_efficiency
@@ -144,32 +151,20 @@ electric_energy_generated_kwh = electric_energy_generated_mj * 0.2778  # Factor 
 # Evitar división por cero si las horas de operación son cero
 average_power_output = electric_energy_generated_kwh / hours_operated if hours_operated > 0 else 0
 
-# --- Cálculo de CO2 Producido ---
+# --- Cálculo de CO2 Producido (mantener lo mismo) ---
 # Asunciones para la composición del syngas (volumétrica, base seca, libre de N2 y CO2 inicial)
-# Estas son simplificaciones para la simulación conceptual.
-# Se asume que el syngas contiene un 20% de CO y un 3% de CH4 en volumen.
-co_percentage = 0.20   # 20% de CO en el syngas
-ch4_percentage = 0.03  # 3% de CH4 en el syngas
+co_percentage = 0.20
+ch4_percentage = 0.03
 
-# Constante molar de volumen (Nm³/kmol) a 0°C y 1 atm (condiciones normales)
 molar_volume_stp = 22.4
-# Masa molar de CO2 (kg/kmol)
-co2_molar_mass = 44  # g/mol = kg/kmol
+co2_molar_mass = 44
 
-# Moles de CO y CH4 en el volumen total de syngas producido
-# (Volumen de gas * % de componente) / Volumen molar estándar
 moles_co = (volume_syngas_produced * co_percentage) / molar_volume_stp
 moles_ch4 = (volume_syngas_produced * ch4_percentage) / molar_volume_stp
-
-# Moles de CO2 producidos por combustión
-# Reacciones: CO + 0.5 O2 -> CO2 (1 mol CO produce 1 mol CO2)
-#             CH4 + 2 O2 -> CO2 + 2 H2O (1 mol CH4 produce 1 mol CO2)
 moles_co2_produced = moles_co + moles_ch4
-
-# Masa de CO2 producida (en kg)
 mass_co2_produced = moles_co2_produced * co2_molar_mass
 
-# --- Mostrar los resultados calculados ---
+# --- Mostrar los resultados calculados (mantener lo mismo) ---
 st.markdown(f"""
     <div class="results-container">
         <p class="results-p">Biomasa Consumida (total): <strong class="results-strong">{total_biomass_consumed:.2f}</strong> kg</p>

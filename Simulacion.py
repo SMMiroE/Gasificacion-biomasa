@@ -203,7 +203,29 @@ with st.expander("Ecuaciones utilizadas"):
     * $\\text{PCI}_{\\text{Syngas}}$ es el Poder Calorífico Inferior del syngas ($\text{MJ/Nm}^3$).
     """)
 
-    st.subheader("4. Energía Eléctrica Generada")
+    # --- Nueva sección para la relación de PCIs ---
+    st.subheader("4. Relación entre PCI por Masa y por Volumen (para gases)")
+    st.markdown("""
+    Para gases, el Poder Calorífico Inferior puede expresarse por unidad de masa ($\text{MJ/kg}$) o por unidad de volumen ($\text{MJ/Nm}^3$). La relación entre ambos está dada por la densidad del gas en condiciones normales:
+    """)
+    st.latex(r'''
+        \text{PCI}_{\text{masa}} = \frac{\text{PCI}_{\text{volumen}}}{\rho_{\text{gas}, \text{NTP}}}
+    ''')
+    st.latex(r'''
+        \text{PCI}_{\text{volumen}} = \text{PCI}_{\text{masa}} \times \rho_{\text{gas}, \text{NTP}}
+    ''')
+    st.markdown("""
+    Donde:
+    * $\\text{PCI}_{\\text{masa}}$ es el Poder Calorífico Inferior por unidad de masa ($\text{MJ/kg}$).
+    * $\\text{PCI}_{\\text{volumen}}$ es el Poder Calorífico Inferior por unidad de volumen ($\text{MJ/Nm}^3$).
+    * $\\rho_{\\text{gas}, \\text{NTP}}$ es la densidad del gas en condiciones normales de temperatura y presión (NTP) ($\text{kg/Nm}^3$).
+    """)
+    st.markdown("""
+    *Nota: En esta simulación, el PCI de la biomasa se introduce en $\\text{MJ/kg}$ (para un sólido), mientras que el PCI del syngas se introduce en $\\text{MJ/Nm}^3$ (para un gas), lo cual es una práctica estándar.*
+    """)
+    # --- Fin de la nueva sección ---
+
+    st.subheader("5. Energía Eléctrica Generada") # Numeración ajustada a 5
     st.latex(r'''
         E_{\text{eléctrica}} = H_{\text{Syngas}} \times \eta_{\text{motor-generador}}
     ''')
@@ -221,7 +243,7 @@ with st.expander("Ecuaciones utilizadas"):
     * $E_{\\text{eléctrica, kWh}}$ es la energía eléctrica en kilovatios-hora (kWh).
     """)
 
-    st.subheader("5. Potencia Eléctrica Promedio")
+    st.subheader("6. Potencia Eléctrica Promedio") # Numeración ajustada a 6
     st.latex(r'''
         P_{\text{promedio}} = \frac{E_{\text{eléctrica, kWh}}}{t_{\text{operación}}}
     ''')
@@ -230,7 +252,7 @@ with st.expander("Ecuaciones utilizadas"):
     * $P_{\\text{promedio}}$ es la potencia eléctrica promedio (kW).
     """)
 
-    st.subheader("6. Emisiones de $\\text{CO}_2$ (basado en combustión de Syngas)")
+    st.subheader("7. Emisiones de $\\text{CO}_2$ (basado en combustión de Syngas)") # Numeración ajustada a 7
     st.markdown("Las emisiones de $\\text{CO}_2$ se calculan a partir de la combustión completa del $\\text{CO}$ y $\\text{CH}_4$ presentes en el syngas. Las reacciones estequiométricas son:")
     st.latex(r'''
         \text{CO} + \frac{1}{2} \text{O}_2 \rightarrow \text{CO}_2

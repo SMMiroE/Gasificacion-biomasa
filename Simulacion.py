@@ -172,8 +172,8 @@ mass_co2_produced = moles_co2_produced * co2_molar_mass
 # --- Mostrar los resultados calculados ---
 st.markdown(f"""
     <div class="results-container">
-        <p class="results-p">Biomasa Consumida (total): <strong class="results-strong">{total_biomasa_consumed:.2f}</strong> kg</p>
-        <p class="results-p">Energía Total de Biomasa: <strong class="results-strong">{total_biomasa_energy:.2f}</strong> MJ</p>
+        <p class="results-p">Biomasa Consumida (total): <strong class="results-strong">{total_biomass_consumed:.2f}</strong> kg</p>
+        <p class="results-p">Energía Total de Biomasa: <strong class="results-strong">{total_biomass_energy:.2f}</strong> MJ</p>
         <p class="results-p">Energía en Syngas Producido: <strong class="results-strong">{energy_in_syngas:.2f}</strong> MJ</p>
         <p class="results-p">Volumen de Syngas Producido: <strong class="results-strong">{volume_syngas_produced:.2f}</strong> Nm³</p>
         <p class="results-p">Energía Eléctrica Generada: <strong class="results-strong">{electric_energy_generated_mj:.2f}</strong> MJ</p>

@@ -198,11 +198,11 @@ with st.expander("Ver Balances de Materia y Energía"):
         V_{\text{Syngas}} = \frac{H_{\text{Syngas}}}{\text{PCI}_{\text{Syngas}}}
     ''')
     st.markdown("""
-    st.markdown("""
     Donde:
     * $V_{\\text{Syngas}}$ es el volumen de syngas producido ($\text{Nm}^3$).
     * $\\text{PCI}_{\\text{Syngas}}$ es el Poder Calorífico Inferior del syngas ($\text{MJ/Nm}^3$).
     """)
+
     st.subheader("4. Energía Eléctrica Generada")
     st.latex(r'''
         E_{\text{eléctrica}} = H_{\text{Syngas}} \times \eta_{\text{motor-generador}}

@@ -199,7 +199,7 @@ with st.expander("Ver Balances de Materia y Energía"):
     ''')
     st.markdown("""
     Donde:
-    * $V_{\\text{Syngas}}$ es el volumen de syngas producido \( \text{Nm}^3 \).
+    * $V_{\\text{Syngas}}$ es el volumen de syngas producido ( \( N \ m^3 \)).
     * $\\text{PCI}_{\\text{Syngas}}$ es el Poder Calorífico Inferior del syngas \( \text{Nm}^3 \).
     """)
 

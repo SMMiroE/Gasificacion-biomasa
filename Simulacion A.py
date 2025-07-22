@@ -99,11 +99,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Diagrama del Sistema ---
-# Asegúrate de que la imagen "image_3c55b6.png" esté en la misma carpeta que tu script
-# ESTA ES LA LÍNEA QUE BUSCA LA IMAGEN. LA SOLUCIÓN ES ASEGURARSE QUE EL ARCHIVO ESTÁ EN GITHUB.
-st.image("image_3c55b6.png",
-         caption="Diagrama del Sistema de Gasificación de Biomasa",
-         use_container_width=True)
+# Se comenta la línea de la imagen para evitar el error de archivo no encontrado en el despliegue.
+# La imagen 'image_3c55b6.png' debe estar en el mismo directorio del script en GitHub.
+# st.image("image_3c55b6.png",
+#          caption="Diagrama del Sistema de Gasificación de Biomasa",
+#          use_container_width=True)
 
 st.markdown("## Parámetros de Entrada")
 

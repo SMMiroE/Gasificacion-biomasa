@@ -560,10 +560,10 @@ st.markdown(f"""
     <div class="results-container">
         <p class="results-p"><span class="results-label">Biomasa Consumida (total):</span> <span class="results-value">{total_biomass_consumed:.2f} kg</span></p>
         <p class="results-p"><span class="results-label">Energía Total de Biomasa:</span> <span class="results-value">{total_biomass_energy:.2f} MJ</span></p>
-        <p class="results-p"><span class="results-label">Eficiencia de Gasificación (calculada):</span> <span class="results-value">{gasification_efficiency_calc:.2%}</span></p>
+        <p class="results-p"><span class="results-label">**Eficiencia de Gasificación (calculada):**</span> <span class="results-value">{gasification_efficiency_calc:.2%}</span></p>
         <p class="results-p"><span class="results-label">Energía en Syngas Producido:</span> <span class="results-value">{energy_in_syngas:.2f} MJ</span></p>
         <p class="results-p"><span class="results-label">Volumen de Syngas Producido:</span> <span class="results-value">{volume_syngas_produced_calc * hours_operated:.2f} Nm³</span></p>
-        <p class="results-p"><span class="results-label">Poder Calorífico Syngas (calculado):</span> <span class="results-value">{syngas_calorific_value_calc:.2f} MJ/Nm³</span></p>
+        <p class="results-p"><span class="results-label">**Poder Calorífico Syngas (calculado):**</span> <span class="results-value">{syngas_calorific_value_calc:.2f} MJ/Nm³</span></p>
         <p class="results-p"><span class="results-label">Energía Eléctrica Generada:</span> <span class="results-value">{electric_energy_generated_mj:.2f} MJ</span></p>
         <p class="results-p"><span class="results-label">Electricidad Generada:</span> <span class="results-value">{electric_energy_generated_kwh:.2f} kWh</span></p>
         <p class="results-p"><span class="results-label">Potencia Eléctrica Promedio:</span> <span class="results-value">{average_power_output:.2f} kW</span></p>
@@ -597,26 +597,26 @@ with st.expander("Ecuaciones utilizadas"):
     Los balances de masa se realizan para cada elemento (C, H, O, N) desde la biomasa y el agente gasificante hacia los productos del syngas y el carbono no convertido.
     """)
     st.latex(r'''
-        \text{C}_{\text{in}} = \text{C}_{\text{Syngas}} + \text{C}_{\text{no convertido}}
+        C_{\text{in}} = C_{\text{Syngas}} + C_{\text{no convertido}}
     ''')
     st.latex(r'''
-        \text{H}_{\text{in}} = \text{H}_{\text{Syngas}}
+        H_{\text{in}} = H_{\text{Syngas}}
     ''')
     st.latex(r'''
-        \text{O}_{\text{in}} = \text{O}_{\text{Syngas}}
+        O_{\text{in}} = O_{\text{Syngas}}
     ''')
     st.latex(r'''
-        \text{N}_{\text{in}} = \text{N}_{\text{Syngas}}
+        N_{\text{in}} = N_{\text{Syngas}}
     ''')
     st.markdown("""
     Donde:
-    * $C_{in}$, $H_{in}$, $O_{in}$, $N_{in}$ son los moles totales de cada átomo que entran al gasificador (desde la biomasa seca, libre de cenizas, humedad y agente gasificante).
-    * $C_{Syngas}$, $H_{Syngas}$, $O_{Syngas}$, $N_{Syngas}$ son los moles de cada átomo en los componentes gaseosos del syngas ($CO, CO_2, CH_4, H_2, H_2O, N_2$).
-    * $C_{no convertido}$ es el carbono que no reacciona y sale como char/coque, determinado por la Eficiencia de Conversión de Carbono (CCE).
+    * $C_{\text{in}}$, $H_{\text{in}}$, $O_{\text{in}}$, $N_{\text{in}}$ son los moles totales de cada átomo que entran al gasificador (desde la biomasa seca, libre de cenizas, humedad y agente gasificante).
+    * $C_{\text{Syngas}}$, $H_{\text{Syngas}}$, $O_{\text{Syngas}}$, $N_{\text{Syngas}}$ son los moles de cada átomo en los componentes gaseosos del syngas (CO, CO$_2$, CH$_4$, H$_2$, H$_2$O, N$_2$).
+    * $C_{\text{no convertido}}$ es el carbono que no reacciona y sale como char/coque, determinado por la Eficiencia de Conversión de Carbono (CCE).
     """)
 
     st.subheader("2. Reacción de Desplazamiento de Gas de Agua (WGSR)")
-    st.markdown("Esta reacción se asume en equilibrio para determinar la proporción entre $\\text{CO}$, $\\text{CO}_2$, $\\text{H}_2$ y $\\text{H}_2\text{O}$ en el syngas:")
+    st.markdown("Esta reacción se asume en equilibrio para determinar la proporción entre $\\text{CO}$, $\\text{CO}_2$, $\\text{H}_2$ y $\\text{H}_2\\text{O}$ en el syngas:")
     st.latex(r'''
         \text{CO} + \text{H}_2\text{O} \rightleftharpoons \text{CO}_2 + \text{H}_2
     ''')
@@ -632,15 +632,15 @@ with st.expander("Ecuaciones utilizadas"):
 
     st.subheader("3. Cálculo de Fracciones Molares del Syngas")
     st.markdown("""
-    Una vez que se han determinado las moles de cada componente gaseoso en el syngas ($\\text{H}_2, \\text{CO}, \\text{CO}_2, \\text{CH}_4, \\text{N}_2, \\text{H}_2\text{O}$), se calcula la fracción molar ($X_i$) de cada componente dividiendo sus moles por las moles totales del syngas:
+    Una vez que se han determinado las moles de cada componente gaseoso en el syngas (H$_2$, CO, CO$_2$, CH$_4$, N$_2$, H$_2$O), se calcula la fracción molar ($X_i$) de cada componente dividiendo sus moles por las moles totales del syngas:
     """)
     st.latex(r'''
         X_i = \frac{\text{moles}_i}{\text{moles}_{\text{Syngas, total}}}
     ''')
     st.markdown("""
     Donde:
-    * $\\text{moles}_i$ es la cantidad de moles del componente $i$ en el syngas.
-    * $\\text{moles}_{\text{Syngas, total}}$ es la suma de las moles de todos los componentes gaseosos presentes en el syngas.
+    * $\text{moles}_i$ es la cantidad de moles del componente $i$ en el syngas.
+    * $\text{moles}_{\text{Syngas, total}}$ es la suma de las moles de todos los componentes gaseosos presentes en el syngas.
     """)
 
     st.subheader("4. Poder Calorífico Inferior (PCI) del Syngas")
@@ -651,12 +651,12 @@ with st.expander("Ecuaciones utilizadas"):
         \text{PCI}_{\text{Syngas}} = \sum_{i} (X_i \times \text{PCI}_{i, \text{Nm}^3})
     ''')
     st.markdown("""
-    Donde $X_i$ es la fracción molar del componente combustible $i$ ($\\text{H}_2, \\text{CO}, \\text{CH}_4$) y $\\text{PCI}_{i, \text{Nm}^3}$ es el Poder Calorífico Inferior de ese componente por unidad de volumen.
+    Donde $X_i$ es la fracción molar del componente combustible $i$ (H$_2$, CO, CH$_4$) y $\text{PCI}_{i, \text{Nm}^3}$ es el Poder Calorífico Inferior de ese componente por unidad de volumen.
     
     Los valores de PCI utilizados son:
-    * **Hidrógeno ($\\text{H}_2$):** 10.79 MJ/Nm³
-    * **Monóxido de Carbono ($\\text{CO}$):** 12.63 MJ/Nm³
-    * **Metano ($\\text{CH}_4$):** 35.80 MJ/Nm³
+    * **Hidrógeno (H$_2$):** 10.79 MJ/Nm³
+    * **Monóxido de Carbono (CO):** 12.63 MJ/Nm³
+    * **Metano (CH$_4$):** 35.80 MJ/Nm³
     """)
 
     st.subheader("5. Balance de Energía General")
@@ -673,7 +673,7 @@ with st.expander("Ecuaciones utilizadas"):
 
     st.subheader("6. Eficiencia de Gasificación")
     st.latex(r'''
-        \eta_{\text{gasificación}} = \frac{V_{\text{Syngas, total}} \times \text{PCI}_{\text{Syngas}}}{\text{H}_{\text{Biomasa}}}
+        \eta_{\text{gasificación}} = \frac{V_{\text{Syngas, total}} \times \text{PCI}_{\text{Syngas}}}{H_{\text{Biomasa}}}
     ''')
     st.markdown("""
     Donde $V_{\text{Syngas, total}}$ es el volumen total de syngas producido durante el periodo de operación ($\text{Nm}^3$).
@@ -723,7 +723,7 @@ with st.expander("Ecuaciones utilizadas"):
     ''')
     st.markdown("""
     Donde:
-    * $\text{moles}_{\text{CO}}$ y $\text{moles}_{\text{CH}_4}$ son los moles totales de CO y $\text{CH}_4$ generados en el syngas durante la operación.
-    * Masa Molar$_{\text{CO}_2}$ es la masa molar del dióxido de carbono (44 kg/kmol).
-    * Estas ecuaciones asumen que todo el CO y $\text{CH}_4$ en el syngas se convierten completamente en $\text{CO}_2$ durante la combustión.
+    * $\text{moles}_{\text{CO}}$ y $\text{moles}_{\text{CH}_4}$ son los moles totales de CO y CH$_4$ generados en el syngas durante la operación.
+    * $\text{Masa Molar}_{\text{CO}_2}$ es la masa molar del dióxido de carbono (44 kg/kmol).
+    * Estas ecuaciones asumen que todo el CO y CH$_4$ en el syngas se convierten completamente en CO$_2$ durante la combustión.
     """)

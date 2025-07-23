@@ -48,12 +48,12 @@ def calculate_k_wgsr(T_k):
 def calculate_k_boudouard(T_k, P_atm):
     """
     Calcula la constante de equilibrio (Kp) para la reacción de Boudouard.
-    C + CO2 <=> 2CO
-    Kp = (P_CO^2) / (P_CO2 * a_C)
-    Asumiendo a_C = 1 si C está presente.
-    Kp = (X_CO^2 / X_CO2) * (P_total / P_ref)
-    Donde P_ref = 1 atm.
+    # C + CO2 <=> 2CO
+    # Kp = (P_CO^2) / (P_CO2 * a_C)
+    # Asumiendo a_C = 1 si C está presente.
+    # Kp = (X_CO^2 / X_CO2) * (P_total / P_ref)
     Fuente: Adaptado de varias fuentes, basado en delta G.
+    """
     delta_g = 171000 - 175.7 * T_k # J/mol
     kp_pressure_basis = np.exp(-delta_g / (R_UNIVERSAL * T_k))
     # Ajuste por presion: Kp_X = Kp_P * (P_total/P_ref)^(-delta_n_gas)
@@ -67,8 +67,8 @@ def calculate_k_methanation_co(T_k, P_atm):
     """
     Calcula la constante de equilibrio (Kp) para la reacción de Metanación desde CO.
     # CO + 3H2 <=> CH4 + H2O
-    Kp = (P_CH4 * P_H2O) / (P_CO * P_H2^3)
-    Kp = (X_CH4 * X_H2O) / (X_CO * X_H2^3) * (P_ref / P_total)^2
+    # Kp = (P_CH4 * P_H2O) / (P_CO * P_H2^3)
+    # Kp = (X_CH4 * X_H2O) / (X_CO * X_H2^3) * (P_ref / P_total)^2
     Fuente: Adaptado de varias fuentes, basado en delta G.
     """
     delta_g = -215930 + 0.233 * T_k # J/mol
@@ -82,11 +82,11 @@ def calculate_k_methanation_co(T_k, P_atm):
 def calculate_k_c_h2o(T_k, P_atm):
     """
     Calcula la constante de equilibrio (Kp) para la reacción de Gas de Agua (Carbono-Vapor).
-    C + H2O <=> CO + H2
-    Kp = (P_CO * P_H2) / (P_H2O * a_C)
-    Asumiendo a_C = 1 si C está presente.
-    Kp = (X_CO * X_H2) / (X_H2O) * (P_total / P_ref)^0 = (X_CO * X_H2) / (X_H2O)
-    delta_n_gas = (1+1) - 1 = 1.  (Esta es la que tiene la Kp en fracciones molares dependiente de la presión)
+    # C + H2O <=> CO + H2
+    # Kp = (P_CO * P_H2) / (P_H2O * a_C)
+    # Asumiendo a_C = 1 si C está presente.
+    # Kp = (X_CO * X_H2) / (X_H2O) * (P_total / P_ref)^0 = (X_CO * X_H2) / (X_H2O)
+    # delta_n_gas = (1+1) - 1 = 1.  (Esta es la que tiene la Kp en fracciones molares dependiente de la presión)
     Fuente: Delta G = 131340 - 134.1 * T_k (J/mol)
     """
     delta_g = 131340 - 134.1 * T_k # J/mol
@@ -99,11 +99,11 @@ def calculate_k_c_h2o(T_k, P_atm):
 def calculate_k_c_ch4(T_k, P_atm):
     """
     Calcula la constante de equilibrio (Kp) para la reacción de Metanación Directa (Carbono-Hidrógeno).
-    Reacción: C + 2 H2 <=> CH4
-    Kp = P_CH4 / P_H2^2 * a_C
-    Asumiendo a_C = 1 si C está presente.
-    Kp = X_CH4 / X_H2^2 * (P_ref / P_total)^(-1) = X_CH4 / X_H2^2 * (P_total / P_ref)
-    delta_n_gas = 1 - 2 = -1.
+    # Reacción: C + 2 H2 <=> CH4
+    # Kp = P_CH4 / P_H2^2 * a_C
+    # Asumiendo a_C = 1 si C está presente.
+    # Kp = X_CH4 / X_H2^2 * (P_ref / P_total)^(-1) = X_CH4 / X_H2^2 * (P_total / P_ref)
+    # delta_n_gas = 1 - 2 = -1.
     Fuente: Delta G = -74850 - 12.08 * T_k (J/mol)
     """
     delta_g = -74850 - 12.08 * T_k # J/mol
@@ -608,7 +608,7 @@ st.markdown(f"""
         <p class="results-p"><span class="results-label">Energía Total de Biomasa:</span> <span class="results-value">{total_biomass_energy_str}</span></p>
         <p class="results-p"><span class="results-label">**Eficiencia de Conversión de Carbono (CCE):**</span> <span class="results-value">{carbon_conversion_efficiency_str}</span></p>
         <p class="results-p"><span class="results-label">Carbono No Convertido (Char) producido:</span> <span class="results-value">{carbon_unconverted_str}</span></p>
-        <p class="results-p"><span class="results-label">**Eficiencia de Gasificación (energética):</span> <span class="results-value">{gasification_efficiency_str}</span></p>
+        <p class="results-p"><span class="results-label">**Eficiencia de Gasificación (energética):**</span> <span class="results-value">{gasification_efficiency_str}</span></p>
         <p class="results-p"><span class="results-label">Energía en Syngas Producido:</span> <span class="results-value">{energy_in_syngas_str}</span></p>
         <p class="results-p"><span class="results-label">Volumen de Syngas Producido:</span> <span class="results-value">{volume_syngas_produced_str}</span></p>
         <p class="results-p"><span class="results-label">**Poder Calorífico Syngas (seco):**</span> <span class="results-value">{syngas_calorific_value_str}</span></p>

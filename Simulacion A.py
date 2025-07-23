@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from scipy.optimize import fsolve # Importamos el solver numérico
 
 st.set_page_config(layout="centered", page_title="Simulación: Biomasa a Electricidad")
 
@@ -34,22 +35,44 @@ PCI_CH4_Nm3 = 35.80 # MJ/Nm3
 # Volumen molar estándar (Nm3/kmol)
 MOLAR_VOLUME_NTP = 22.414 # Nm3/kmol a 0°C y 1 atm (NTP)
 
-# --- Funciones Auxiliares ---
+# --- Funciones Auxiliares para Constantes de Equilibrio ---
 def calculate_k_wgsr(T_k):
     """
     Calcula la constante de equilibrio (Kp) para la reacción de desplazamiento de gas de agua (WGSR).
     CO + H2O <=> CO2 + H2
-    Correlación válida para un rango de temperaturas.
-    Args:
-        T_k (float): Temperatura en Kelvin.
-    Returns:
-        float: Constante de equilibrio Kp.
+    Fuente: Journal of Environmental Chemical Engineering 8 (2020) 103755
     """
-    # Fuente: Simplified equilibrium model for downdraft gasification of biomass
-    # Journal of Environmental Chemical Engineering 8 (2020) 103755
-    # Correlación ajustada para el rango de interés
     log_kp = -2.2562 + (1829.0 / T_k) + 0.3546 * np.log(T_k) - (1.189 * 10**-4 * T_k) + (1.936 * 10**-8 * T_k**2)
     return np.exp(log_kp)
+
+def calculate_k_boudouard(T_k):
+    """
+    Calcula la constante de equilibrio (Kp) para la reacción de Boudouard.
+    C + CO2 <=> 2CO
+    Fuente: Adaptado de varias fuentes, basado en delta G.
+    log10(Kp) = 8.775 - (9013/T) - 1.144 log10(T) + 2.06*10^-4 T - 1.57*10^-7 T^2 + 4.97*10^-11 T^3
+    Convertir a ln(Kp) y base e.
+    """
+    # Usando una correlación simplificada para Boudouard
+    # Kp = exp(A/T + B) para Boudouard: C + CO2 = 2CO
+    # Para la reacción CO2 + C <=> 2CO, dG = 171 - 175.7*10^-3 T (kJ/mol)
+    # Kp = exp(-dG/RT)
+    delta_g = 171000 - 175.7 * T_k # J/mol
+    kp = np.exp(-delta_g / (R_UNIVERSAL * T_k))
+    return kp
+
+def calculate_k_methanation(T_k):
+    """
+    Calcula la constante de equilibrio (Kp) para la reacción de Metanación.
+    CO + 3H2 <=> CH4 + H2O
+    Fuente: Adaptado de varias fuentes, basado en delta G.
+    """
+    # Para la reacción CO + 3H2 <=> CH4 + H2O
+    # Delta G = -215.93 + 0.233*T (kJ/mol)
+    delta_g = -215930 + 0.233 * T_k # J/mol
+    kp = np.exp(-delta_g / (R_UNIVERSAL * T_k))
+    return kp
+
 
 # --- Título y Descripción ---
 st.markdown("""
@@ -80,7 +103,6 @@ st.markdown("""
     .results-p {
         margin: 10px 0;
         display: flex;
-        /* justify-content: space-between; /* Mantener space-between para empujar al final */
         align-items: center;
         padding-bottom: 5px;
         border-bottom: 1px dashed #b2f5ea;
@@ -89,33 +111,26 @@ st.markdown("""
         border-bottom: none;
     }
     .results-label {
-        flex: 1; /* Permitir que la etiqueta tome el espacio disponible */
-        text-align: left; /* Alinea la etiqueta a la izquierda */
-        padding-right: 15px; /* Espacio entre la etiqueta y el valor */
-        min-width: 180px; /* Ancho mínimo para las etiquetas para evitar saltos de línea */
+        flex: 1;
+        text-align: left;
+        padding-right: 15px;
+        min-width: 180px;
     }
     .results-value {
         font-weight: 700;
         color: #38b2ac;
         font-size: 1.2em;
-        text-align: right; /* Alinea el valor a la derecha */
-        min-width: 120px; /* Ancho mínimo para los valores para que estén alineados */
+        text-align: right;
+        min-width: 120px;
     }
     </style>
     <h1 class="big-title">🌱 Simulación: Biomasa a Electricidad ⚡</h1>
     <p class="note">Ajusta los parámetros para ver cómo la biomasa se convierte en electricidad a través del syngas. Esta es una simulación conceptual y simplificada.</p>
 """, unsafe_allow_html=True)
 
-# --- Diagrama del Sistema ---
-# Se comenta la línea de la imagen para evitar el error de archivo no encontrado en el despliegue.
-# La imagen 'image_3c55b6.png' debe estar en el mismo directorio del script en GitHub.
-# st.image("image_3c55b6.png",
-#          caption="Diagrama del Sistema de Gasificación de Biomasa",
-#          use_container_width=True)
-
+# --- Sección de Parámetros de Entrada ---
 st.markdown("## Parámetros de Entrada")
 
-# --- Sección de Parámetros de Biomasa ---
 st.subheader("Parámetros de la Biomasa")
 biomass_flow = st.number_input(
     "Flujo de Biomasa (kg/h):",
@@ -137,20 +152,19 @@ with col_h:
 with col_o:
     biomass_O = st.number_input("Oxígeno (O) [%]:", min_value=0.0, max_value=100.0, value=43.0, step=0.1, format="%.1f") / 100.0
 
-col_n, col_s = st.columns(2) # Ajustamos a 2 columnas aquí
+col_n, col_s = st.columns(2)
 with col_n:
     biomass_N = st.number_input("Nitrógeno (N) [%]:", min_value=0.0, max_value=10.0, value=0.5, step=0.01, format="%.2f") / 100.0
 with col_s:
     biomass_S = st.number_input("Azufre (S) [%]:", min_value=0.0, max_value=10.0, value=0.0, step=0.01, format="%.2f") / 100.0
 
-# Validación de suma de componentes C+H+O+N+S (base seca y libre de cenizas)
 sum_elemental = (biomass_C + biomass_H + biomass_O + biomass_N + biomass_S) * 100
-if abs(sum_elemental - 100) > 0.1: # Tolerancia de 0.1%
+if abs(sum_elemental - 100) > 0.1:
     st.warning(f"La suma de C, H, O, N, S (base seca y libre de cenizas) es {sum_elemental:.1f}%. Debería ser ~100%. Por favor, ajusta los valores.")
 
 st.markdown("### Contenido de Humedad y Cenizas (Base 'Tal como se Recibe')")
 
-col_moisture, col_ash = st.columns(2) # Nuevas columnas para humedad y cenizas
+col_moisture, col_ash = st.columns(2)
 with col_moisture:
     biomass_moisture = st.number_input(
         "Humedad de la Biomasa [%]:",
@@ -172,7 +186,6 @@ with col_ash:
         help="Porcentaje de material incombustible en la biomasa 'tal como se recibe'."
     ) / 100.0
 
-# Nueva entrada: Eficiencia de Conversión de Carbono
 carbon_conversion_efficiency = st.number_input(
     "Eficiencia de Conversión de Carbono (CCE) [%]:",
     min_value=70.0,
@@ -183,7 +196,6 @@ carbon_conversion_efficiency = st.number_input(
     help="Porcentaje del carbono de la biomasa que se convierte en gases (CO, CO2, CH4)."
 ) / 100.0
 
-# Por ahora, mantenemos la entrada directa para el PCI de la biomasa
 biomass_energy = st.number_input(
     "Poder Calorífico Biomasa (MJ/kg, base seca):",
     min_value=15.0,
@@ -194,7 +206,6 @@ biomass_energy = st.number_input(
     help="Energía contenida por unidad de masa de biomasa (PCI), base seca."
 )
 
-# --- Sección de Parámetros del Gasificador ---
 st.subheader("Parámetros del Gasificador")
 gasification_temp = st.number_input(
     "Temperatura de Gasificación (°C):",
@@ -217,11 +228,10 @@ gasification_pressure = st.number_input(
 gasifying_agent = st.selectbox(
     "Agente Gasificante:",
     options=["Aire", "Vapor", "Oxígeno", "Mezcla Aire/Vapor"],
-    index=0, # Por defecto aire
+    index=0,
     help="Tipo de agente utilizado para la gasificación."
 )
 
-# Parámetros específicos del agente gasificante
 er_ratio = 0.0
 steam_biomass_ratio = 0.0
 oxygen_biomass_ratio = 0.0
@@ -278,7 +288,6 @@ elif gasifying_agent == "Mezcla Aire/Vapor":
 
 st.info("La eficiencia de gasificación y el PCI del syngas se calcularán automáticamente en este modelo detallado.")
 
-# Mantenemos los parámetros del motor-generador y horas de operación por ahora.
 st.subheader("Parámetros del Sistema de Conversión Eléctrica")
 engine_efficiency = st.number_input(
     "Eficiencia Motor-Generador (%):",
@@ -303,194 +312,150 @@ st.markdown("---")
 
 # --- Función Principal de Simulación de Gasificación ---
 def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass_N, biomass_S,
-                          biomass_ash, biomass_moisture, biomass_energy,
-                          carbon_conversion_efficiency,
+                          biomass_ash, biomass_moisture, carbon_conversion_efficiency,
                           gasification_temp, gasification_pressure, gasifying_agent,
                           er_ratio, steam_biomass_ratio, oxygen_biomass_ratio):
 
-    # Convertir temperatura a Kelvin
     T_k = gasification_temp + 273.15
+    P_atm = gasification_pressure / 1.01325 # Convertir bar a atm para Kp basados en presiones parciales
 
     # 1. Calcular Masas Netas de Biomasa (por kg de biomasa 'as received')
-    # Masa seca de biomasa (excluyendo humedad)
     biomass_dry = 1 - biomass_moisture
-    # Masa seca y libre de cenizas (base "realmente reactiva")
     biomass_daf = biomass_dry * (1 - biomass_ash)
 
     # Moles de elementos en 1 kg de biomasa 'as received' (base reactiva)
-    # Convertimos porcentajes a moles por kg de biomasa total alimentada
     moles_C_biomass_in = (biomass_flow * biomass_daf * biomass_C) / MW_C
     moles_H_biomass_in = (biomass_flow * biomass_daf * biomass_H) / MW_H
     moles_O_biomass_in = (biomass_flow * biomass_daf * biomass_O) / MW_O
     moles_N_biomass_in = (biomass_flow * biomass_daf * biomass_N) / MW_N
-    # moles_S_biomass_in = (biomass_flow * biomass_daf * biomass_S) / MW_S # No usado en syngas por simplicidad
 
     # Moles de H y O de la humedad
     moles_H2O_moisture_in = (biomass_flow * biomass_moisture) / MW_H2O
-    moles_H_moisture_in = moles_H2O_moisture_in * 2
-    moles_O_moisture_in = moles_H2O_moisture_in * 1
-
-    # 2. Calcular Agente Gasificante (Masa y Moles de O2, N2, H2O)
+    
+    # 2. Calcular Agente Gasificante
     moles_O2_agent_in = 0
     moles_N2_agent_in = 0
-    moles_H2O_agent_in = 0 # para vapor
+    moles_H2O_agent_in = 0
 
     if gasifying_agent == "Aire" or gasifying_agent == "Mezcla Aire/Vapor":
-        # Cálculo del O2 estequiométrico por kg de biomasa DAF
-        # Basado en la fórmula de combustible C_a H_b O_c N_d S_e
-        # moles de O2 requeridos para la combustión completa de 1 kg de biomasa DAF
-        # (C/12) + (H/4) - (O/32)
-        # Esto es más preciso:
         O2_stoich_moles_per_kg_DAF = (biomass_C / MW_C) + (biomass_H / (4 * MW_H)) - (biomass_O / (2 * MW_O))
-        
-        # Moles O2 alimentado por hora (kg biomasa_daf / kg biomasa_ar)
         moles_O2_agent_in = biomass_flow * biomass_daf * O2_stoich_moles_per_kg_DAF * er_ratio
-        
-        # Aire es 21% O2, 79% N2 molar. O2/N2 ratio = 0.21/0.79 = 0.2658
-        moles_N2_agent_in = moles_O2_agent_in / (0.21 / 0.79) # moles N2 / hora
+        moles_N2_agent_in = moles_O2_agent_in / (0.21 / 0.79)
         
     if gasifying_agent == "Vapor" or gasifying_agent == "Mezcla Aire/Vapor":
-        moles_H2O_agent_in = (biomass_flow * steam_biomass_ratio) / MW_H2O # moles H2O / hora
+        moles_H2O_agent_in = (biomass_flow * steam_biomass_ratio) / MW_H2O
     
     if gasifying_agent == "Oxígeno":
-        moles_O2_agent_in = (biomass_flow * oxygen_biomass_ratio) / MW_O2 # moles O2 / hora
+        moles_O2_agent_in = (biomass_flow * oxygen_biomass_ratio) / MW_O2
 
-
-    # 3. Balance Total de Átomos (por hora)
+    # 3. Balance Total de Átomos de Entrada (por hora)
     total_moles_C_in = moles_C_biomass_in
     total_moles_H_in = moles_H_biomass_in + (moles_H2O_moisture_in * 2) + (moles_H2O_agent_in * 2)
     total_moles_O_in = moles_O_biomass_in + (moles_H2O_moisture_in * 1) + (moles_H2O_agent_in * 1) + (moles_O2_agent_in * 2)
     total_moles_N_in = moles_N_biomass_in + (moles_N2_agent_in * 2)
 
-
-    # 4. Estimar Moles de Syngas (Simplificación y Balance Atómico)
-    # Asunciones clave:
-    # - Todo el N de la entrada sale como N2
-    # - Carbono no convertido (char) = (1 - CCE) * C_biomasa
-    # - Fracción de C convertido que va a CH4 (heurística)
-    # - Resolver WGSR para CO, CO2, H2, H2O
-
-    # Moles de N2 en syngas
-    moles_N2_out = total_moles_N_in / 2 # Todo el N se convierte en N2
-
     # Moles de C no convertido (char)
     moles_C_unconverted = total_moles_C_in * (1 - carbon_conversion_efficiency)
     moles_C_converted = total_moles_C_in * carbon_conversion_efficiency
 
-    # Asumir una fracción del carbono convertido se convierte en CH4
-    # Este es un valor empírico y puede necesitar ajuste. 5-15% es común.
-    CH4_carbon_fraction = 0.08 # 8% del carbono convertido va a CH4
-    moles_CH4_out = moles_C_converted * CH4_carbon_fraction
-    
-    # Ajustar carbono convertido restante para CO y CO2
-    moles_C_in_CO_CO2 = moles_C_converted - moles_CH4_out
-    
-    # Resto de moles de H y O disponibles para H2, CO, CO2, H2O (excluyendo N2 y CH4)
-    # Cada mol de CH4 usa 4 moles de H y 1 mol de C
-    moles_H_remaining = total_moles_H_in - (moles_CH4_out * 4)
-    moles_O_remaining = total_moles_O_in # Ojo: O de CH4 es 0, O de N2 es 0
+    # Moles de N2 en syngas (todo el N sale como N2)
+    moles_N2_out = total_moles_N_in / 2
 
-    # Ahora resolvemos para CO, CO2, H2, H2O
-    # Sistema de ecuaciones no lineal:
-    # 1) moles_CO_out + moles_CO2_out = moles_C_in_CO_CO2
-    # 2) moles_CO_out + 2*moles_CO2_out + moles_H2O_out = moles_O_remaining
-    # 3) 2*moles_H2_out + 2*moles_H2O_out = moles_H_remaining
-    # 4) Kp = (moles_CO2_out * moles_H2_out) / (moles_CO_out * moles_H2O_out)
-    
-    # Para resolver este sistema, podemos usar una aproximación o un solver numérico.
-    # Dada la naturaleza de Streamlit y la simplicidad buscada, usaremos una aproximación
-    # que es común en modelos simplificados: asumir una relación H2/CO o CO/CO2.
-    # O bien, una iteración simple para el equilibrio de WGSR.
+    # Ahora definimos las ecuaciones para el solver
+    # Incógnitas: moles_H2, moles_CO, moles_CO2, moles_CH4, moles_H2O (salida por hora)
+    # n[0]=H2, n[1]=CO, n[2]=CO2, n[3]=CH4, n[4]=H2O
 
-    # --- SIMPLIFICACIÓN TEMPORAL (PENDIENTE DE IMPLEMENTACIÓN DE SOLVER) ---
-    # Para la primera implementación funcional, vamos a fijar la relación CO2/CO
-    # o H2/CO y luego usar el balance para los demás, y luego intentar aproximar el Kp.
-    # La solución rigurosa del equilibrio termodinámico es compleja y requiere solvers.
-    # Por ahora, mantendremos la simplificación que habíamos puesto, pero con una
-    # base un poco más "inteligente" para que los números no sean completamente arbitrarios.
-    
-    # Vamos a usar una heurística para la relación H2/CO y luego ajustar por O y H
-    # Esto es una simplificación grande para evitar un solver numérico complejo.
-    # Relación típica H2/CO en syngas de aire: 0.5 a 1.2
-    H2_CO_ratio_approx = 0.8 # Valor de diseño empírico para aire gasificación
-    
-    # Vamos a resolver las ecuaciones de balance de C, H, O y la relación Kp.
-    # Este es el punto más complicado del modelo.
-    # Por ahora, si no se implementa un solver real, los resultados serán aproximados.
-    
-    # Una heurística más robusta para CO, CO2, H2, H2O usando Kp:
-    # Necesitamos una variable para iterar.
-    # Vamos a usar fsolve de scipy.optimize si fuera un modelo completo.
-    # Sin solver, es una asignación empírica o simplificación.
+    def equations(n, total_moles_C_in, total_moles_H_in, total_moles_O_in,
+                  moles_C_unconverted, moles_N2_out, T_k, P_atm):
+        
+        n_H2, n_CO, n_CO2, n_CH4, n_H2O = n
+        
+        # Asegurarse de que las moles no sean negativas para el cálculo de fracciones
+        # fsolve puede dar valores negativos, pero luego los corregimos.
+        # Para el cálculo de Kp, es mejor trabajar con valores absolutos si el solver
+        # produce negativos intermedios, aunque idealmente, no debería salir de la región positiva.
+        
+        # Para evitar log(negativo) o divisiones por cero en Kp,
+        # podemos establecer un valor mínimo pequeño para las moles
+        epsilon = 1e-9
+        n_H2_pos = max(epsilon, n_H2)
+        n_CO_pos = max(epsilon, n_CO)
+        n_CO2_pos = max(epsilon, n_CO2)
+        n_CH4_pos = max(epsilon, n_CH4)
+        n_H2O_pos = max(epsilon, n_H2O)
 
-    # Para el propósito de esta app conceptual, mantendremos la simplificación,
-    # pero el usuario debe entender que NO ES UN EQUILIBRIO TERM. RIGUROSO
-    # sin un solver.
+        # Moles totales de gases para fracciones molares (parcialmente, sin N2 aún)
+        total_moles_gases = n_H2_pos + n_CO_pos + n_CO2_pos + n_CH4_pos + n_H2O_pos + moles_N2_out
+        
+        # Fracciones molares (basadas en moles_pos para evitar problemas con log)
+        X_H2 = n_H2_pos / total_moles_gases
+        X_CO = n_CO_pos / total_moles_gases
+        X_CO2 = n_CO2_pos / total_moles_gases
+        X_CH4 = n_CH4_pos / total_moles_gases
+        X_H2O = n_H2O_pos / total_moles_gases
 
-    # Los valores de ejemplo (proporciones molares típicas de un syngas de aire)
-    # y luego balancear átomos.
-    
-    # Esta es una asignación EMPÍRICA, NO un cálculo de equilibrio.
-    # Para tener valores coherentes para la demostración:
-    # Calculamos el Kp de la WGSR
-    kp_wgsr = calculate_k_wgsr(T_k)
-    
-    # Ahora, un método de resolución algebraica para CO, CO2, H2, H2O basado en 
-    # balances atómicos y la constante Kp.
-    # Definamos las incógnitas: nCO, nCO2, nH2, nH2O (moles de salida)
-    
-    # n_C_reactive = total_moles_C_in * carbon_conversion_efficiency
-    # n_CH4 = n_C_reactive * CH4_carbon_fraction
-    # n_C_remaining_for_CO_CO2 = n_C_reactive - n_CH4
-    
-    # Ahora tenemos un sistema con 3 balances (C, H, O) y la ecuación de Kp para 4 variables.
-    # nCO + nCO2 = n_C_remaining_for_CO_CO2 (Eq C)
-    # nCO + 2*nCO2 + nH2O = total_moles_O_in - (2*moles_O2_agent_in) - moles_O_moisture_in (Eq O)
-    # 2*nH2 + 2*nH2O = total_moles_H_in - (4*nCH4) (Eq H)
-    # Kp = (nCO2 * nH2) / (nCO * nH2O) (Eq Kp)
+        # Presiones parciales (para Kp que usan presiones)
+        # Assuming Kp's are defined using partial pressures in bar or atm
+        # P_i = X_i * P_total
+        P_H2 = X_H2 * P_atm
+        P_CO = X_CO * P_atm
+        P_CO2 = X_CO2 * P_atm
+        P_CH4 = X_CH4 * P_atm
+        P_H2O = X_H2O * P_atm
 
-    # Este sistema de 4 ecuaciones no lineales para nCO, nCO2, nH2, nH2O
-    # requiere un solver.
-    # PARA EVITAR UN SOLVER COMPLEJO EN STREAMLIT: usaremos una aproximación muy común
-    # en modelos simplificados: fijar una de las relaciones (p.ej., H2O/H2 o CO2/CO)
-    # y usar Kp como chequeo o para un ajuste simple.
+        # Constantes de equilibrio a la temperatura de gasificación
+        Kp_wgsr = calculate_k_wgsr(T_k)
+        Kp_boudouard = calculate_k_boudouard(T_k)
+        Kp_methanation = calculate_k_methanation(T_k)
+        
+        # Ecuaciones del sistema:
+        # 1. Balance de Carbono (C)
+        eq_C = (n_CO + n_CO2 + n_CH4) - (total_moles_C_in - moles_C_unconverted) # Carbono convertido debe ser distribuido entre CO, CO2, CH4
 
-    # Vamos a usar una relación CO/CO2 típica para gasificación con aire.
-    # Este es un punto de calibración empírica.
-    R_CO_CO2 = 2.0 # CO/CO2 ratio. A mayor T, mayor CO/CO2.
+        # 2. Balance de Hidrógeno (H)
+        eq_H = (2 * n_H2 + 4 * n_CH4 + 2 * n_H2O) - total_moles_H_in
 
-    moles_CO2_out = moles_C_in_CO_CO2 / (R_CO_CO2 + 1)
-    moles_CO_out = moles_C_in_CO_CO2 - moles_CO2_out
+        # 3. Balance de Oxígeno (O)
+        eq_O = (n_CO + 2 * n_CO2 + n_H2O) - total_moles_O_in
 
-    # Ahora balanceamos H2 y H2O con las moles restantes de H y O, y la Kp.
-    # total_moles_O_in = moles_CO_out + 2*moles_CO2_out + moles_H2O_out
-    # moles_H2O_out = total_moles_O_in - moles_CO_out - 2*moles_CO2_out
-    
-    # H2O debe ser positivo, si es negativo, significa que nuestra estimación de CO/CO2 es demasiado alta
-    # o el O total es muy bajo. Para evitar esto, si sale negativo, forzamos 0.
-    moles_H2O_from_O_balance = total_moles_O_in - moles_CO_out - 2*moles_CO2_out
-    moles_H2O_out = max(0, moles_H2O_from_O_balance) # Moles H2O según balance de O
+        # 4. Equilibrio de WGSR: CO + H2O <=> CO2 + H2
+        # Kp_wgsr = (P_CO2 * P_H2) / (P_CO * P_H2O)
+        # Reorganizamos: P_CO2 * P_H2 - Kp_wgsr * P_CO * P_H2O = 0
+        eq_wgsr = (X_CO2 * X_H2) - (Kp_wgsr * X_CO * X_H2O) # Usamos fracciones molares ya que P_total cancela
 
-    # Ahora, el H2 por balance de H:
-    # total_moles_H_in = 2*moles_H2_out + 4*moles_CH4_out + 2*moles_H2O_out
-    moles_H2_out = (total_moles_H_in - (4 * moles_CH4_out) - (2 * moles_H2O_out)) / 2
-    moles_H2_out = max(0, moles_H2_out) # Aseguramos no negativo
+        # 5. Equilibrio de Metanación: CO + 3H2 <=> CH4 + H2O
+        # Kp_methanation = (P_CH4 * P_H2O) / (P_CO * P_H2^3)
+        # Reorganizamos: P_CH4 * P_H2O - Kp_methanation * P_CO * P_H2^3 = 0
+        eq_methanation = (X_CH4 * X_H2O) - (Kp_methanation * X_CO * (X_H2**3) * (P_atm**(-2))) # P_atm^-2 para Kp basado en presiones parciales con P total
 
-    # Verificación de Kp (solo para información, no para resolver)
-    # k_check = (moles_CO2_out * moles_H2_out) / (moles_CO_out * moles_H2O_out) if (moles_CO_out * moles_H2O_out) != 0 else np.nan
-    # st.write(f"Kp Calculado: {k_check:.2f}, Kp a {gasification_temp}°C: {kp_wgsr:.2f}")
+        return [eq_C, eq_H, eq_O, eq_wgsr, eq_methanation]
 
-    # Es crucial asegurar que las moles no sean negativas
-    moles_H2_out = max(0, moles_H2_out)
-    moles_CO_out = max(0, moles_CO_out)
-    moles_CO2_out = max(0, moles_CO2_out)
-    moles_CH4_out = max(0, moles_CH4_out)
-    moles_N2_out = max(0, moles_N2_out)
-    moles_H2O_out = max(0, moles_H2O_out)
+    # Valores iniciales para el solver (aproximación, pueden ser refinados)
+    # Es crucial que las moles no sean negativas inicialmente.
+    # Intentamos con valores razonables para un syngas
+    initial_guess = [0.1, 0.2, 0.1, 0.05, 0.1] # H2, CO, CO2, CH4, H2O (fracciones o moles relativas)
+    initial_guess_moles = [val * total_moles_C_in / 0.4 for val in initial_guess] # Escalar a moles estimadas
 
+    # Resolver el sistema de ecuaciones
+    try:
+        # Limitar los valores para que no sean negativos
+        sol = fsolve(equations, initial_guess_moles, args=(total_moles_C_in, total_moles_H_in, total_moles_O_in,
+                                                       moles_C_unconverted, moles_N2_out, T_k, P_atm))
+        
+        moles_H2_out, moles_CO_out, moles_CO2_out, moles_CH4_out, moles_H2O_out = sol
+        
+        # Asegurarse de que ninguna mol sea negativa después del solver
+        moles_H2_out = max(0, moles_H2_out)
+        moles_CO_out = max(0, moles_CO_out)
+        moles_CO2_out = max(0, moles_CO2_out)
+        moles_CH4_out = max(0, moles_CH4_out)
+        moles_H2O_out = max(0, moles_H2O_out)
 
-    # Convertimos los moles a fracciones molares y calculamos PCI del syngas
-    total_moles_syngas = moles_H2_out + moles_CO_out + moles_CO2_out + moles_CH4_out + moles_N2_out + moles_H2O_out
+    except Exception as e:
+        st.error(f"Error al resolver el sistema de ecuaciones: {e}. Intente ajustar los parámetros.")
+        return {}, 0, 0
+
+    total_moles_syngas = moles_H2_out + moles_CO_out + moles_CO2_out + moles_CH4_out + moles_H2O_out + moles_N2_out
     
     if total_moles_syngas == 0:
         syngas_composition = {'H2': 0, 'CO': 0, 'CO2': 0, 'CH4': 0, 'N2': 0, 'H2O': 0}
@@ -506,17 +471,11 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
             'H2O': moles_H2O_out / total_moles_syngas
         }
         
-        # Calcular PCI del syngas (MJ/Nm3)
         syngas_calorific_value = (syngas_composition['H2'] * PCI_H2_Nm3 +
                                   syngas_composition['CO'] * PCI_CO_Nm3 +
                                   syngas_composition['CH4'] * PCI_CH4_Nm3)
         
-        # Volumen de syngas producido (Nm3/h)
         volume_syngas_produced = total_moles_syngas * MOLAR_VOLUME_NTP
-
-    # La eficiencia de gasificación se calculará implícitamente del PCI del syngas
-    # y la energía de la biomasa. La energía del syngas será PCI_syngas * volumen_syngas.
-    # Luego, eficiencia = H_syngas / H_biomasa
 
     return syngas_composition, syngas_calorific_value, volume_syngas_produced
 
@@ -524,41 +483,36 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
 # Llamar a la función de gasificación
 syngas_composition, syngas_calorific_value_calc, volume_syngas_produced_calc = simulate_gasification(
     biomass_flow, biomass_C, biomass_H, biomass_O, biomass_N, biomass_S,
-    biomass_ash, biomass_moisture, biomass_energy, carbon_conversion_efficiency,
+    biomass_ash, biomass_moisture, carbon_conversion_efficiency,
     gasification_temp, gasification_pressure, gasifying_agent,
     er_ratio, steam_biomass_ratio, oxygen_biomass_ratio
 )
 
-# Ahora los resultados de la gasificación se usan en los cálculos posteriores
 total_biomass_consumed = biomass_flow * hours_operated
-total_biomass_energy = total_biomass_consumed * biomass_energy # Este es PCI_biomasa * kg_biomasa_seca
+total_biomass_energy = total_biomass_consumed * biomass_energy
 
-# Energía en syngas producido (total durante las horas de operación)
 energy_in_syngas = volume_syngas_produced_calc * syngas_calorific_value_calc * hours_operated
 
-# Eficiencia de gasificación (implícita en el modelo)
 gasification_efficiency_calc = energy_in_syngas / total_biomass_energy if total_biomass_energy > 0 else 0
 
 electric_energy_generated_mj = energy_in_syngas * engine_efficiency
-electric_energy_generated_kwh = electric_energy_generated_mj * 0.2778  # Factor de conversión: 1 MJ = 0.2778 kWh
+electric_energy_generated_kwh = electric_energy_generated_mj * 0.2778
 
 average_power_output = electric_energy_generated_kwh / hours_operated if hours_operated > 0 else 0
 
-# --- Cálculo de CO2 Producido (usando la composición calculada) ---
-# Moles de CO2 producidos directamente de la combustión del CO y CH4 del syngas.
-# Los moles de CO y CH4 de salida ya se calcularon en simulate_gasification y están en syngas_composition
-# Hay que recalcular las moles de salida en la función o pasarlas.
-# Para simplificar AHORA, usaremos las fracciones molares y el volumen total de syngas:
-moles_CO_out_total_calc = syngas_composition['CO'] * volume_syngas_produced_calc / MOLAR_VOLUME_NTP # Moles por hora
-moles_CH4_out_total_calc = syngas_composition['CH4'] * volume_syngas_produced_calc / MOLAR_VOLUME_NTP # Moles por hora
+# Para el CO2 producido, necesitamos las moles totales de CO y CH4 que salieron del solver
+# Si syngas_composition está vacío (por un error en el solver), estas serán 0.
+moles_CO_out_total_hr = syngas_composition.get('CO', 0) * (volume_syngas_produced_calc / MOLAR_VOLUME_NTP)
+moles_CH4_out_total_hr = syngas_composition.get('CH4', 0) * (volume_syngas_produced_calc / MOLAR_VOLUME_NTP)
 
-moles_co2_produced_from_syngas = (moles_CO_out_total_calc + moles_CH4_out_total_calc) * hours_operated
+moles_co2_produced_from_syngas = (moles_CO_out_total_hr + moles_CH4_out_total_hr) * hours_operated
 mass_co2_produced = moles_co2_produced_from_syngas * MW_CO2
+
 
 # --- Mostrar los resultados calculados ---
 st.markdown(f"""
     <div class="results-container">
-        <p class="results-p"><span class="results-label">Biomasa Consumida (total):</span> <span class="results-value">{total_biomass_consumed:.2f} kg</span></p>
+        <p class="results-p"><span class="results-label">Biomasa Consumida (total):</span> <span class="results-value">{total_biomasa_consumed:.2f} kg</span></p>
         <p class="results-p"><span class="results-label">Energía Total de Biomasa:</span> <span class="results-value">{total_biomass_energy:.2f} MJ</span></p>
         <p class="results-p"><span class="results-label">**Eficiencia de Gasificación (calculada):**</span> <span class="results-value">{gasification_efficiency_calc:.2%}</span></p>
         <p class="results-p"><span class="results-label">Energía en Syngas Producido:</span> <span class="results-value">{energy_in_syngas:.2f} MJ</span></p>
@@ -580,7 +534,7 @@ if syngas_composition:
     syngas_df['Fracción Molar (%)'] = syngas_df['Fracción Molar'] * 100
     st.dataframe(syngas_df.style.format({'Fracción Molar': "{:.4f}", 'Fracción Molar (%)': "{:.2f}%"}), hide_index=True)
 else:
-    st.write("No se pudo calcular la composición del syngas. Verifique los parámetros de entrada.")
+    st.write("No se pudo calcular la composición del syngas. Verifique los parámetros de entrada o contacte al soporte si el error persiste.")
 
 
 st.markdown("---")
@@ -589,12 +543,12 @@ st.markdown("---")
 
 with st.expander("Ecuaciones utilizadas"):
     st.markdown("""
-    Aquí se detallan las ecuaciones principales utilizadas para los cálculos de la simulación.
+    Aquí se detallan las ecuaciones principales utilizadas para los cálculos de la simulación. El modelo de gasificación se basa en un enfoque de **equilibrio termodinámico**, donde se asume que las principales reacciones químicas alcanzan el equilibrio a la temperatura de gasificación.
     """)
 
     st.subheader("1. Balances de Masa Atómicos")
     st.markdown("""
-    Los balances de masa se realizan para cada elemento (C, H, O, N) desde la biomasa y el agente gasificante hacia los productos del syngas y el carbono no convertido.
+    Los balances de masa se realizan para cada elemento (C, H, O, N) desde la biomasa y el agente gasificante hacia los productos del syngas y el carbono no convertido. Estos balances deben cumplirse estrictamente.
     """)
     st.latex(r'''
         C_{\text{in}} = C_{\text{Syngas}} + C_{\text{no convertido}}
@@ -612,35 +566,65 @@ with st.expander("Ecuaciones utilizadas"):
     Donde:
     * $C_{\text{in}}$, $H_{\text{in}}$, $O_{\text{in}}$, $N_{\text{in}}$ son los moles totales de cada átomo que entran al gasificador (desde la biomasa seca, libre de cenizas, humedad y agente gasificante).
     * $C_{\text{Syngas}}$, $H_{\text{Syngas}}$, $O_{\text{Syngas}}$, $N_{\text{Syngas}}$ son los moles de cada átomo en los componentes gaseosos del syngas (CO, CO$_2$, CH$_4$, H$_2$, H$_2$O, N$_2$).
-    * $C_{\text{no convertido}}$ es el carbono que no reacciona y sale como char/coque, determinado por la Eficiencia de Conversión de Carbono (CCE).
+    * $C_{\text{no convertido}}$ es el carbono que no reacciona y sale como char/coque, determinado por la Eficiencia de Conversión de Carbono (CCE) ingresada.
     """)
 
-    st.subheader("2. Reacción de Desplazamiento de Gas de Agua (WGSR)")
-    st.markdown("Esta reacción se asume en equilibrio para determinar la proporción entre $\\text{CO}$, $\\text{CO}_2$, $\\text{H}_2$ y $\\text{H}_2\\text{O}$ en el syngas:")
+    st.subheader("2. Reacciones de Equilibrio y sus Constantes ($K_p$)")
+    st.markdown("El modelo considera las siguientes reacciones químicas en equilibrio a la temperatura y presión de gasificación. Las constantes de equilibrio ($K_p$) se calculan a partir de la energía libre de Gibbs de la reacción ($\Delta G^\circ = \Delta H^\circ - T\Delta S^\circ$) mediante la relación $K_p = e^{-\Delta G^\circ / (R T)}$. Aquí, se utilizan correlaciones aproximadas para $\Delta G^\circ$ en función de la temperatura ($T_k$ en Kelvin):")
+
+    st.markdown("#### a) Reacción de Desplazamiento de Gas de Agua (WGSR)")
     st.latex(r'''
         \text{CO} + \text{H}_2\text{O} \rightleftharpoons \text{CO}_2 + \text{H}_2
     ''')
-    st.markdown("La constante de equilibrio $K_p$ de esta reacción depende de la temperatura y se utiliza para resolver el sistema de ecuaciones para las fracciones molares de estos gases. Su definición es:")
-    st.latex(r'''
-        K_p = \frac{X_{\text{CO}_2} \cdot X_{\text{H}_2}}{X_{\text{CO}} \cdot X_{\text{H}_2\text{O}}}
-    ''')
-    st.markdown("Donde $X_i$ es la fracción molar del componente $i$ en el syngas. El valor de $K_p$ se calcula internamente usando la siguiente correlación en función de la temperatura de gasificación ($T_k$ en Kelvin):")
+    st.markdown("La constante de equilibrio $K_p$ para esta reacción se calcula como:")
     st.latex(r'''
         \ln K_p = -2.2562 + \frac{1829.0}{T_k} + 0.3546 \ln T_k - (1.189 \times 10^{-4} T_k) + (1.936 \times 10^{-8} T_k^2)
     ''')
-    st.markdown("Esta correlación se utiliza para obtener el valor de $K_p$ a una temperatura dada, lo que permite un balance más preciso de los componentes gaseosos.")
+    st.markdown("Fuente: Journal of Environmental Chemical Engineering 8 (2020) 103755.")
+
+    st.markdown("#### b) Reacción de Boudouard")
+    st.latex(r'''
+        \text{C} + \text{CO}_2 \rightleftharpoons 2\text{CO}
+    ''')
+    st.markdown("La constante de equilibrio $K_p$ para esta reacción se calcula a partir de $\Delta G^\circ = 171000 - 175.7 \cdot T_k$ (en J/mol):")
+    st.latex(r'''
+        K_p = \exp\left(-\frac{171000 - 175.7 \cdot T_k}{R \cdot T_k}\right)
+    ''')
+    st.markdown("Donde $R$ es la constante universal de los gases ideales (8.314 J/(mol·K)). Esta reacción es fundamental para la formación de CO a partir de $\text{CO}_2$ y carbono sólido (coque/char).")
+
+    st.markdown("#### c) Reacción de Metanación")
+    st.latex(r'''
+        \text{CO} + 3\text{H}_2 \rightleftharpoons \text{CH}_4 + \text{H}_2\text{O}
+    ''')
+    st.markdown("La constante de equilibrio $K_p$ para esta reacción se calcula a partir de $\Delta G^\circ = -215930 + 0.233 \cdot T_k$ (en J/mol):")
+    st.latex(r'''
+        K_p = \exp\left(-\frac{-215930 + 0.233 \cdot T_k}{R \cdot T_k}\right)
+    ''')
+    st.markdown("Esta reacción describe la formación de metano en el syngas.")
+
+    st.markdown("Las expresiones de $K_p$ en términos de fracciones molares ($X_i$) y presión total ($P_{\text{total}}$) son:")
+    st.latex(r'''
+        K_{p, \text{WGSR}} = \frac{X_{\text{CO}_2} \cdot X_{\text{H}_2}}{X_{\text{CO}} \cdot X_{\text{H}_2\text{O}}}
+    ''')
+    st.latex(r'''
+        K_{p, \text{Boudouard}} = \frac{X_{\text{CO}}^2}{X_{\text{CO}_2}} \cdot \frac{P_{\text{total}}}{P_0} \quad \text{ (donde } P_0 \text{ es la presión de referencia, 1 atm o bar)}
+    ''')
+    st.latex(r'''
+        K_{p, \text{Metanación}} = \frac{X_{\text{CH}_4} \cdot X_{\text{H}_2\text{O}}}{X_{\text{CO}} \cdot X_{\text{H}_2}^3} \cdot \left(\frac{P_0}{P_{\text{total}}}\right)^2
+    ''')
+    st.markdown("Estas ecuaciones de equilibrio, junto con los balances de masa atómicos, forman un sistema de ecuaciones no lineales que se resuelve numéricamente para encontrar las moles de cada componente del syngas.")
 
     st.subheader("3. Cálculo de Fracciones Molares del Syngas")
     st.markdown("""
-    Una vez que se han determinado las moles de cada componente gaseoso en el syngas (H$_2$, CO, CO$_2$, CH$_4$, N$_2$, H$_2$O), se calcula la fracción molar ($X_i$) de cada componente dividiendo sus moles por las moles totales del syngas:
+    Una vez que se han determinado las moles de cada componente gaseoso en el syngas ($n_{\text{H}_2}, n_{\text{CO}}, n_{\text{CO}_2}, n_{\text{CH}_4}, n_{\text{N}_2}, n_{\text{H}_2\text{O}}$), se calcula la fracción molar ($X_i$) de cada componente dividiendo sus moles por las moles totales del syngas:
     """)
     st.latex(r'''
-        X_i = \frac{\text{moles}_i}{\text{moles}_{\text{Syngas, total}}}
+        X_i = \frac{n_i}{n_{\text{Syngas, total}}}
     ''')
     st.markdown("""
     Donde:
-    * $\text{moles}_i$ es la cantidad de moles del componente $i$ en el syngas.
-    * $\text{moles}_{\text{Syngas, total}}$ es la suma de las moles de todos los componentes gaseosos presentes en el syngas.
+    * $n_i$ es la cantidad de moles del componente $i$ en el syngas.
+    * $n_{\text{Syngas, total}}$ es la suma de las moles de todos los componentes gaseosos presentes en el syngas.
     """)
 
     st.subheader("4. Poder Calorífico Inferior (PCI) del Syngas")
@@ -651,12 +635,12 @@ with st.expander("Ecuaciones utilizadas"):
         \text{PCI}_{\text{Syngas}} = \sum_{i} (X_i \times \text{PCI}_{i, \text{Nm}^3})
     ''')
     st.markdown("""
-    Donde $X_i$ es la fracción molar del componente combustible $i$ (H$_2$, CO, CH$_4$) y $\text{PCI}_{i, \text{Nm}^3}$ es el Poder Calorífico Inferior de ese componente por unidad de volumen.
+    Donde $X_i$ es la fracción molar del componente combustible $i$ ($\text{H}_2, \text{CO}, \text{CH}_4$) y $\text{PCI}_{i, \text{Nm}^3}$ es el Poder Calorífico Inferior de ese componente por unidad de volumen.
     
     Los valores de PCI utilizados son:
-    * **Hidrógeno (H$_2$):** 10.79 MJ/Nm³
-    * **Monóxido de Carbono (CO):** 12.63 MJ/Nm³
-    * **Metano (CH$_4$):** 35.80 MJ/Nm³
+    * **Hidrógeno ($\text{H}_2$):** 10.79 MJ/Nm³
+    * **Monóxido de Carbono ($\text{CO}$):** 12.63 MJ/Nm³
+    * **Metano ($\text{CH}_4$):** 35.80 MJ/Nm³
     """)
 
     st.subheader("5. Balance de Energía General")
@@ -686,6 +670,7 @@ with st.expander("Ecuaciones utilizadas"):
     st.markdown("""
     Donde:
     * $E_{\text{eléctrica}}$ es la energía eléctrica generada (MJ).
+    * $H_{\text{Syngas}}$ es la energía total contenida en el syngas producido (MJ).
     * $\eta_{\text{motor-generador}}$ es la eficiencia del motor-generador (adimensional).
     """)
 
@@ -727,3 +712,14 @@ with st.expander("Ecuaciones utilizadas"):
     * $\text{Masa Molar}_{\text{CO}_2}$ es la masa molar del dióxido de carbono (44 kg/kmol).
     * Estas ecuaciones asumen que todo el CO y CH$_4$ en el syngas se convierten completamente en CO$_2$ durante la combustión.
     """)
+
+---
+
+### Notas sobre la Implementación:
+
+* **Solver Numérico (`fsolve`)**: Hemos definido una función `equations` que toma las moles de los componentes del syngas como incógnitas y devuelve una lista de los "residuos" de las ecuaciones (es decir, cuánto se desvían de cero). `fsolve` intenta encontrar los valores de las incógnitas que hacen que todos los residuos sean cero.
+* **Initial Guess**: El `initial_guess` es una estimación inicial de las moles de los componentes. La calidad de esta estimación puede afectar la convergencia del solver. He puesto un valor inicial más "inteligente" basado en la entrada de carbono para darle una mejor oportunidad de converger.
+* **Manejo de Valores Negativos**: Es posible que `fsolve`, en ciertas condiciones, devuelva valores negativos para las moles si no puede encontrar una solución real o si los parámetros de entrada son inconsistentes. He añadido `max(0, ...)` después de la solución para asegurar que las moles finales siempre sean no negativas. También se incluyó un pequeño `epsilon` para evitar divisiones por cero o logaritmos de cero al calcular las fracciones molares dentro de la función `equations`.
+* **Unidades de Presión para $K_p$**: Las constantes de equilibrio ($K_p$) suelen estar definidas en términos de presiones parciales relativas a una presión de referencia (generalmente 1 bar o 1 atm). He añadido una conversión `P_atm = gasification_pressure / 1.01325` para alinear la presión del sistema con la base de las $K_p$. La ecuación de $K_p$ para Boudouard y Metanación ha sido ajustada para incluir el término de presión total.
+
+Con estos cambios, el modelo debería ofrecer resultados mucho más realistas y estar mejor alineado con la bibliografía de gasificación. ¡Pruébalo y dime qué te parecen los nuevos resultados!

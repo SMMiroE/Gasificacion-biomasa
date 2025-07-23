@@ -125,27 +125,27 @@ st.markdown(f"""
         font-weight: 700;
     }}
     .note {{
-        font-size: "0.95em"; /* Corregido */
+        font-size: "0.95em";
         color: #666;
         text-align: center;
-        margin-top: "15px";   /* Corregido */
-        margin-bottom: "30px"; /* Corregido */
+        margin-top: "15px";
+        margin-bottom: "30px";
     }}
     .results-container {{
-        padding: 25px;
+        padding: "25px"; /* Corregido */
         background-color: #e6fffa;
-        border: 1px solid #81e6d9;
-        border-radius: 10px;
-        font-size: "1.15em"; /* Corregido */
+        border: "1px solid #81e6d9"; /* Corregido para seguridad */
+        border-radius: "10px"; /* Corregido para seguridad */
+        font-size: "1.15em";
         line-height: 1.6;
-        margin-top: 30px;
+        margin-top: "30px"; /* Corregido para seguridad */
     }}
     .results-p {{
-        margin: "10px 0"; /* Corregido */
+        margin: "10px 0";
         display: flex;
         align-items: center;
-        padding-bottom: 5px;
-        border-bottom: 1px dashed #b2f5ea;
+        padding-bottom: "5px"; /* Corregido para seguridad */
+        border-bottom: "1px dashed #b2f5ea"; /* Corregido para seguridad */
     }}
     .results-p:last-child {{
         border-bottom: none;
@@ -153,15 +153,15 @@ st.markdown(f"""
     .results-label {{
         flex: 1;
         text-align: left;
-        padding-right: 15px;
-        min-width: 180px;
+        padding-right: "15px"; /* Corregido para seguridad */
+        min-width: "180px"; /* Corregido para seguridad */
     }}
     .results-value {{
         font-weight: 700;
         color: #38b2ac;
-        font-size: "1.2em"; /* Corregido */
+        font-size: "1.2em";
         text-align: right;
-        min-width: 120px;
+        min-width: "120px"; /* Corregido para seguridad */
     }}
     </style>
     <h1 class="big-title">🌱 Simulación: Biomasa a Electricidad ⚡</h1>
@@ -805,9 +805,3 @@ with st.expander("Ecuaciones utilizadas"):
     * $\text{Masa Molar}_{\text{CO}_2}$ es la masa molar del dióxido de carbono (44 kg/kmol).
     * Estas ecuaciones asumen que todo el CO y CH$_4$ en el syngas se convierten completamente en CO$_2$ durante la combustión.
     """)
-
----
-
-Confío en que esta última modificación, al añadir un espacio entre el "2" y la "H2" en el docstring, finalmente resuelva ese problema de sintaxis tan particular. A veces, la forma en que Python (o el entorno en el que se ejecuta, como Streamlit) parsea las cadenas, incluso en docstrings, puede ser muy sensible.
-
-¡Espero que esta sea la vencida y tu simulación funcione sin más `SyntaxError`!

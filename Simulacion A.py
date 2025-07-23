@@ -66,7 +66,7 @@ def calculate_k_boudouard(T_k, P_atm):
 def calculate_k_methanation_co(T_k, P_atm):
     """
     Calcula la constante de equilibrio (Kp) para la reacción de Metanación desde CO.
-    # CO + 3H2 <=> CH4 + H2O # Esta línea fue comentada anteriormente
+    # CO + 3H2 <=> CH4 + H2O # Esta línea fue comentada
     Kp = (P_CH4 * P_H2O) / (P_CO * P_H2^3)
     Kp = (X_CH4 * X_H2O) / (X_CO * X_H2^3) * (P_ref / P_total)^2
     Fuente: Adaptado de varias fuentes, basado en delta G.
@@ -99,7 +99,7 @@ def calculate_k_c_h2o(T_k, P_atm):
 def calculate_k_c_ch4(T_k, P_atm):
     """
     Calcula la constante de equilibrio (Kp) para la reacción de Metanación Directa (Carbono-Hidrógeno).
-  #  C + 2H2 <=> CH4
+    C + 2H2 <=> CH4
     Kp = P_CH4 / P_H2^2 * a_C
     Asumiendo a_C = 1 si C está presente.
     Kp = X_CH4 / X_H2^2 * (P_ref / P_total)^(-1) = X_CH4 / X_H2^2 * (P_total / P_ref)
@@ -115,11 +115,10 @@ def calculate_k_c_ch4(T_k, P_atm):
 
 
 # --- Título y Descripción ---
-# Asegúrate de que este bloque st.markdown esté correctamente formado con tres comillas al inicio y al final.
 st.markdown(f"""
     <style>
     .big-title {{
-        font-size: 2.5rem;
+        font-size: "2.5rem"; /* Corregido: "2.5rem" entre comillas */
         color: #1a202c;
         text-align: center;
         margin-bottom: 20px;
@@ -168,7 +167,6 @@ st.markdown(f"""
     <h1 class="big-title">🌱 Simulación: Biomasa a Electricidad ⚡</h1>
     <p class="note">Ajusta los parámetros para ver cómo la biomasa se convierte en electricidad a través del syngas. Esta es una simulación conceptual y simplificada.</p>
 """, unsafe_allow_html=True)
-
 
 # --- Sección de Parámetros de Entrada ---
 st.markdown("## Parámetros de Entrada")
@@ -807,13 +805,3 @@ with st.expander("Ecuaciones utilizadas"):
     * $\text{Masa Molar}_{\text{CO}_2}$ es la masa molar del dióxido de carbono (44 kg/kmol).
     * Estas ecuaciones asumen que todo el CO y CH$_4$ en el syngas se convierten completamente en CO$_2$ durante la combustión.
     """)
-
----
-
-### **Important Note on Streamlit and f-strings in `st.markdown`**
-
-When you use an f-string (like `f"""..."""`) with `st.markdown`, you need to be careful with curly braces `{}` inside the string, as Python will try to interpret them for variable insertion.
-
-Since your CSS uses curly braces for style declarations (e.g., `{{ font-size: 2.5rem; }}`), you need to **double them up** (`{{` and `}}`) so Python knows they are literal curly braces for the CSS and not placeholders for variables. I've applied this change in the `st.markdown` block where the CSS is defined. This is a common pitfall when mixing f-strings with languages like CSS or JSON.
-
-This correction on line 121 (and potentially other lines within that `st.markdown` block) should resolve the `SyntaxError`. Try running your app again!

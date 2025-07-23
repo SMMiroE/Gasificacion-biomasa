@@ -66,7 +66,7 @@ def calculate_k_boudouard(T_k, P_atm):
 def calculate_k_methanation_co(T_k, P_atm):
     """
     Calcula la constante de equilibrio (Kp) para la reacción de Metanación desde CO.
-    CO + 3H2 <=> CH4 + H2O
+    # CO + 3H2 <=> CH4 + H2O
     Kp = (P_CH4 * P_H2O) / (P_CO * P_H2^3)
     Kp = (X_CH4 * X_H2O) / (X_CO * X_H2^3) * (P_ref / P_total)^2
     Fuente: Adaptado de varias fuentes, basado en delta G.
@@ -608,7 +608,7 @@ st.markdown(f"""
         <p class="results-p"><span class="results-label">Energía Total de Biomasa:</span> <span class="results-value">{total_biomass_energy_str}</span></p>
         <p class="results-p"><span class="results-label">**Eficiencia de Conversión de Carbono (CCE):**</span> <span class="results-value">{carbon_conversion_efficiency_str}</span></p>
         <p class="results-p"><span class="results-label">Carbono No Convertido (Char) producido:</span> <span class="results-value">{carbon_unconverted_str}</span></p>
-        <p class="results-p"><span class="results-label">**Eficiencia de Gasificación (energética):**</span> <span class="results-value">{gasification_efficiency_str}</span></p>
+        <p class="results-p"><span class="results-label">**Eficiencia de Gasificación (energética):</span> <span class="results-value">{gasification_efficiency_str}</span></p>
         <p class="results-p"><span class="results-label">Energía en Syngas Producido:</span> <span class="results-value">{energy_in_syngas_str}</span></p>
         <p class="results-p"><span class="results-label">Volumen de Syngas Producido:</span> <span class="results-value">{volume_syngas_produced_str}</span></p>
         <p class="results-p"><span class="results-label">**Poder Calorífico Syngas (seco):**</span> <span class="results-value">{syngas_calorific_value_str}</span></p>

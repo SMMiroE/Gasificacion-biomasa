@@ -66,7 +66,7 @@ def calculate_k_boudouard(T_k, P_atm):
 def calculate_k_methanation_co(T_k, P_atm):
     """
     Calcula la constante de equilibrio (Kp) para la reacción de Metanación desde CO.
-    CO + 3H2 <=> CH4 + H2O
+   # CO + 3H2 <=> CH4 + H2O
     Kp = (P_CH4 * P_H2O) / (P_CO * P_H2^3)
     Kp = (X_CH4 * X_H2O) / (X_CO * X_H2^3) * (P_ref / P_total)^2
     Fuente: Adaptado de varias fuentes, basado en delta G.

@@ -587,21 +587,35 @@ mass_co2_produced = moles_co2_produced_from_syngas * MW_CO2
 
 
 # --- Mostrar los resultados calculados ---
-st.markdown("## Resultados de la Simulación")
+# Formatear las cadenas con los valores antes de pasarlas a st.markdown
+total_biomass_consumed_str = f"{total_biomass_consumed:.2f} kg"
+total_biomass_energy_str = f"{total_biomass_energy:.2f} MJ"
+carbon_conversion_efficiency_str = f"{carbon_conversion_efficiency_calc:.2%}"
+carbon_unconverted_str = f"{moles_C_unconverted_out * MW_C:.2f} kg/h"
+gasification_efficiency_str = f"{gasification_efficiency_calc:.2%}"
+energy_in_syngas_str = f"{energy_in_syngas:.2f} MJ"
+volume_syngas_produced_str = f"{volume_syngas_produced_calc * hours_operated:.2f} Nm³"
+syngas_calorific_value_str = f"{syngas_calorific_value_calc:.2f} MJ/Nm³"
+electric_energy_generated_mj_str = f"{electric_energy_generated_mj:.2f} MJ"
+electric_energy_generated_kwh_str = f"{electric_energy_generated_kwh:.2f} kWh"
+average_power_output_str = f"{average_power_output:.2f} kW"
+mass_co2_produced_str = f"{mass_co2_produced:.2f} kg"
+
+
 st.markdown(f"""
     <div class="results-container">
-        <p class="results-p"><span class="results-label">Biomasa Consumida (total):</span> <span class="results-value">{total_biomass_consumed:.2f} kg</span></p>
-        <p class="results-p"><span class="results-label">Energía Total de Biomasa:</span> <span class="results-value">{total_biomass_energy:.2f} MJ</span></p>
-        <p class="results-p"><span class="results-label">**Eficiencia de Conversión de Carbono (CCE):**</span> <span class="results-value">{carbon_conversion_efficiency_calc:.2%}</span></p>
-        <p class="results-p"><span class="results-label">Carbono No Convertido (Char) producido:</span> <span class="results-value">{moles_C_unconverted_out * MW_C:.2f} kg/h</span></p>
-        <p class="results-p"><span class="results-label">**Eficiencia de Gasificación (energética):**</span> <span class="results-value">{gasification_efficiency_calc:.2%}</span></p>
-        <p class="results-p"><span class="results-label">Energía en Syngas Producido:</span> <span class="results-value">{energy_in_syngas:.2f} MJ</span></p>
-        <p class="results-p"><span class="results-label">Volumen de Syngas Producido:</span> <span class="results-value">{volume_syngas_produced_calc * hours_operated:.2f} Nm³</span></p>
-        <p class="results-p"><span class="results-label">**Poder Calorífico Syngas (seco):**</span> <span class="results-value">{syngas_calorific_value_calc:.2f} MJ/Nm³</span></p>
-        <p class="results-p"><span class="results-label">Energía Eléctrica Generada:</span> <span class="results-value">{electric_energy_generated_mj:.2f} MJ</span></p>
-        <p class="results-p"><span class="results-label">Electricidad Generada:</span> <span class="results-value">{electric_energy_generated_kwh:.2f} kWh</span></p>
-        <p class="results-p"><span class="results-label">Potencia Eléctrica Promedio:</span> <span class="results-value">{average_power_output:.2f} kW</span></p>
-        <p class="results-p"><span class="results-label">CO2 Producido (combustión):</span> <span class="results-value">{mass_co2_produced:.2f} kg</span></p>
+        <p class="results-p"><span class="results-label">Biomasa Consumida (total):</span> <span class="results-value">{total_biomass_consumed_str}</span></p>
+        <p class="results-p"><span class="results-label">Energía Total de Biomasa:</span> <span class="results-value">{total_biomass_energy_str}</span></p>
+        <p class="results-p"><span class="results-label">**Eficiencia de Conversión de Carbono (CCE):**</span> <span class="results-value">{carbon_conversion_efficiency_str}</span></p>
+        <p class="results-p"><span class="results-label">Carbono No Convertido (Char) producido:</span> <span class="results-value">{carbon_unconverted_str}</span></p>
+        <p class="results-p"><span class="results-label">**Eficiencia de Gasificación (energética):**</span> <span class="results-value">{gasification_efficiency_str}</span></p>
+        <p class="results-p"><span class="results-label">Energía en Syngas Producido:</span> <span class="results-value">{energy_in_syngas_str}</span></p>
+        <p class="results-p"><span class="results-label">Volumen de Syngas Producido:</span> <span class="results-value">{volume_syngas_produced_str}</span></p>
+        <p class="results-p"><span class="results-label">**Poder Calorífico Syngas (seco):**</span> <span class="results-value">{syngas_calorific_value_str}</span></p>
+        <p class="results-p"><span class="results-label">Energía Eléctrica Generada:</span> <span class="results-value">{electric_energy_generated_mj_str}</span></p>
+        <p class="results-p"><span class="results-label">Electricidad Generada:</span> <span class="results-value">{electric_energy_generated_kwh_str}</span></p>
+        <p class="results-p"><span class="results-label">Potencia Eléctrica Promedio:</span> <span class="results-value">{average_power_output_str}</span></p>
+        <p class="results-p"><span class="results-label">CO2 Producido (combustión):</span> <span class="results-value">{mass_co2_produced_str}</span></p>
     </div>
 """, unsafe_allow_html=True)
 

@@ -132,20 +132,20 @@ st.markdown(f"""
         margin-bottom: "30px";
     }}
     .results-container {{
-        padding: "25px"; /* Corregido */
+        padding: "25px";
         background-color: #e6fffa;
-        border: "1px solid #81e6d9"; /* Corregido para seguridad */
-        border-radius: "10px"; /* Corregido para seguridad */
+        border: "1px solid #81e6d9";
+        border-radius: "10px";
         font-size: "1.15em";
         line-height: 1.6;
-        margin-top: "30px"; /* Corregido para seguridad */
+        margin-top: "30px";
     }}
     .results-p {{
         margin: "10px 0";
         display: flex;
         align-items: center;
-        padding-bottom: "5px"; /* Corregido para seguridad */
-        border-bottom: "1px dashed #b2f5ea"; /* Corregido para seguridad */
+        padding-bottom: "5px";
+        border-bottom: "1px dashed #b2f5ea";
     }}
     .results-p:last-child {{
         border-bottom: none;
@@ -153,18 +153,18 @@ st.markdown(f"""
     .results-label {{
         flex: 1;
         text-align: left;
-        padding-right: "15px"; /* Corregido para seguridad */
-        min-width: "180px"; /* Corregido para seguridad */
+        padding-right: "15px";
+        min-width: "180px";
     }}
     .results-value {{
         font-weight: 700;
         color: #38b2ac;
         font-size: "1.2em";
         text-align: right;
-        min-width: "120px"; /* Corregido para seguridad */
+        min-width: "120px";
     }}
     </style>
-    <h1 class="big-title">🌱 Simulación: Biomasa a Electricidad ⚡</h1>
+    <h1 class="big-title">Simulación: Biomasa a Electricidad</h1>
     <p class="note">Ajusta los parámetros para ver cómo la biomasa se convierte en electricidad a través del syngas. Esta es una simulación conceptual y simplificada.</p>
 """, unsafe_allow_html=True)
 

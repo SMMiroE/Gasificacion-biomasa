@@ -99,7 +99,7 @@ def calculate_k_c_h2o(T_k, P_atm):
 def calculate_k_c_ch4(T_k, P_atm):
     """
     Calcula la constante de equilibrio (Kp) para la reacción de Metanación Directa (Carbono-Hidrógeno).
-    C + 2H2 <=> CH4
+  #  C + 2H2 <=> CH4
     Kp = P_CH4 / P_H2^2 * a_C
     Asumiendo a_C = 1 si C está presente.
     Kp = X_CH4 / X_H2^2 * (P_ref / P_total)^(-1) = X_CH4 / X_H2^2 * (P_total / P_ref)

@@ -55,10 +55,6 @@ def calculate_k_boudouard(T_k, P_atm):
     Donde P_ref = 1 atm.
     Fuente: Adaptado de varias fuentes, basado en delta G.
     delta_g = 171000 - 175.7 * T_k # J/mol
-    kp_pressure = exp(-delta_g / (R_UNIVERSAL * T_k))
-    kp_molar_fraction = kp_pressure * (P_ref / P_atm) # Delta n_gas = (2-1) = 1
-    """
-    delta_g = 171000 - 175.7 * T_k # J/mol
     kp_pressure_basis = np.exp(-delta_g / (R_UNIVERSAL * T_k))
     # Ajuste por presion: Kp_X = Kp_P * (P_total/P_ref)^(-delta_n_gas)
     # delta_n_gas = 2 - 1 = 1
@@ -429,8 +425,8 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
         Kp_wgsr = calculate_k_wgsr(T_k)
         Kp_boudouard = calculate_k_boudouard(T_k, P_atm)
         Kp_methanation_co = calculate_k_methanation_co(T_k, P_atm)
-        Kp_c_h2o = calculate_k_c_h2o(T_k, P_atm)
-        Kp_c_ch4 = calculate_k_c_ch4(T_k, P_atm)
+        # Kp_c_h2o = calculate_k_c_h2o(T_k, P_atm) # Ya no se usa directamente en fsolve, pero se mantiene la función
+        # Kp_c_ch4 = calculate_k_c_ch4(T_k, P_atm) # Ya no se usa directamente en fsolve, pero se mantiene la función
         
         # Ecuaciones del sistema:
         # 1. Balance de Carbono (C)
@@ -454,63 +450,12 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
         # 6. Equilibrio de Boudouard: C + CO2 <=> 2CO
         # Kp_boudouard = (X_CO^2) / X_CO2 * (P_total / P_ref) (Si C está presente, a_C = 1)
         # Este Kp_boudouard ya está ajustado para fracciones molares
-        eq_boudouard = (X_CO_pos**2) - (Kp_boudouard * X_CO2_pos)
-
-        # 7. Equilibrio de Gas de Agua con C: C + H2O <=> CO + H2
-        # Kp_c_h2o = (X_CO * X_H2) / X_H2O * (P_ref / P_total) (Si C está presente, a_C = 1)
-        # Este Kp_c_h2o ya está ajustado para fracciones molares
-        eq_c_h2o = (X_CO_pos * X_H2_pos) - (Kp_c_h2o * X_H2O_pos)
-
-        # 8. Equilibrio de Metanación Directa: C + 2H2 <=> CH4
-        # Kp_c_ch4 = X_CH4 / X_H2^2 * (P_total / P_ref) (Si C está presente, a_C = 1)
-        # Este Kp_c_ch4 ya está ajustado para fracciones molares
-        eq_c_ch4 = (X_CH4_pos) - (Kp_c_ch4 * X_H2_pos**2)
+        eq_boudouard = (X_CO**2) - (Kp_boudouard * X_CO2) # CORRECCIÓN AQUÍ: X_CO_pos -> X_CO, X_CO2_pos -> X_CO2
         
-        # IMPORTANTE: No podemos tener más ecuaciones que incógnitas para fsolve.
-        # Necesitamos elegir 6 ecuaciones para las 6 incógnitas.
-        # Usaremos los 3 balances de masa y 3 ecuaciones de equilibrio principales.
-        # Las ecuaciones de equilibrio de fase sólida (Boudouard, C-H2O, C-CH4)
-        # a menudo son interdependientes en un sistema con un sólido puro.
-        # Si el C está presente, la actividad es 1, y Kp se aplica directamente.
-        # Si C no está presente, las reacciones de C no se aplican.
-
-        # Para un sistema de 6 ecuaciones con 6 incógnitas, podemos usar:
-        # Balances (C, H, O) + WGSR + Metanacion_CO + Boudouard
-        # Las reacciones C-H2O y C-CH4 pueden derivarse de las otras si hay carbono sólido presente.
-        # Si incluimos Boudouard, C-H2O y C-CH4 simultáneamente, el sistema puede ser sobre-especificado o inconsistente
-        # si se asume a_C=1 para todas.
-        # La termodinámica de un sistema con fase sólida a menudo requiere que solo un número limitado de reacciones
-        # independientes involucren el sólido.
-
-        # Vamos a intentar con un set común para sistemas con sólidos presentes:
-        # Balances de C, H, O, y las 3 reacciones de equilibrio principales.
-        # Las 3 reacciones principales: WGSR, Boudouard, y Metanación (una de ellas, ya sea desde CO o desde C)
-        # Si el C está presente, la reacción C+H2O puede ser derivada de WGSR + Boudouard.
-        # C + H2O <=> CO + H2 (WGSR inversa: CO2 + H2 <=> CO + H2O, y Boudouard: C + CO2 <=> 2CO)
-        # C + H2O <=> (CO2 + H2 - CO) + CO
-        # C + CO2 <=> 2CO => C + H2O <=> (C + 2CO - CO2) + H2 - CO2 + CO
-
-        # Para tener un sistema de 6x6, usaremos Boudouard, WGSR, y Metanación (CO+3H2).
-        # Esto significa que la presencia de H2O en la Metanación (CO+3H2) y en la WGSR ya maneja el H2O.
-        # La Metanación directa (C+2H2) es a menudo más lenta y puede ser secundaria a CO+3H2.
-        # Si asumimos equilibrio total, un conjunto de reacciones linealmente independientes es suficiente.
-        # La más robusta es la minimización de Gibbs, no fsolve.
-        # Pero para fsolve, necesitamos 6 ecuaciones linealmente independientes.
-
-        # Revisemos el enfoque clásico:
-        # 1. Balance de Carbono
-        # 2. Balance de Hidrógeno
-        # 3. Balance de Oxígeno
-        # 4. Equilibrio de WGSR
-        # 5. Equilibrio de Boudouard (requiere C_unconverted para ser válido, si no, se agota)
-        # 6. Equilibrio de Metanación desde CO
-
-        # Aquí la complejidad: si n_C_unconverted = 0, la ecuación de Boudouard con a_C=1 no es válida.
-        # Esto es lo que hace que fsolve sea difícil para el equilibrio de fases.
-
-        # Para este ejercicio, vamos a asumir que el C_unconverted > 0 (es decir, el C no se agota)
-        # para que las ecuaciones de equilibrio con C sólido sean válidas.
-        # Si el solver da n_C_unconverted muy cercano a cero o negativo, es una limitación.
+        # Las ecuaciones de equilibrio de C + H2O y C + CH4 no se incluyen directamente en el sistema de fsolve
+        # para evitar un sistema sobre-determinado o problemas de convergencia al tratar
+        # con la fase sólida explícitamente y mantener 6 ecuaciones para 6 incógnitas.
+        # Su efecto se captura por los balances atómicos y las otras reacciones de equilibrio.
 
         return [
             eq_C,
@@ -518,28 +463,13 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
             eq_O,
             eq_wgsr,
             eq_methanation_co, # Metanación (CO + 3H2)
-            eq_boudouard        # Boudouard (C + CO2)
-            # No podemos incluir 3 reacciones de C-sólido y 2 de gas-gas + 3 balances = 8 ecuaciones para 6 incógnitas.
-            # Necesitamos elegir un set mínimo e independiente.
-            # WGSR, Metanación (CO), y Boudouard son un set común.
-            # Las otras reacciones (C-H2O, C-CH4) pueden ser expresadas como combinación de estas.
+            eq_boudouard       # Boudouard (C + CO2)
         ]
 
     # Valores iniciales para el solver (aproximación, pueden ser refinados)
     # n[0]=H2, n[1]=CO, n[2]=CO2, n[3]=CH4, n[4]=H2O, n[5]=C_unconverted
-    # Estos deben ser razonables para que fsolve converja.
-    # Una buena heurística es basarse en el carbono de entrada.
-    # Por ejemplo, si total_moles_C_in es 10 kmol/h:
-    # H2: 2-5
-    # CO: 3-6
-    # CO2: 1-3
-    # CH4: 0.5-2
-    # H2O: 0.5-2
-    # C_unconverted: 0.1-1
-
+    
     # Escalar los valores iniciales basados en el flujo de biomasa
-    # Un kg de biomasa tiene ~40-50 moles de C. 100 kg/h -> ~4000-5000 moles C/h.
-    # Usemos una fracción del carbono total de entrada como base para las moles iniciales.
     initial_guess_H2 = total_moles_H_in * 0.2
     initial_guess_CO = total_moles_C_in * 0.4
     initial_guess_CO2 = total_moles_C_in * 0.1
@@ -577,7 +507,7 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
 
     except Exception as e:
         st.error(f"Error al resolver el sistema de ecuaciones: {e}. Intente ajustar los parámetros.")
-        return {}, 0, 0, 0 # Añadir 0 para CCE_calc
+        return {}, 0, 0, 0, 0 # Añadir 0 para CCE_calc y moles_C_unconverted_out si hay error
 
     total_moles_syngas_dry = moles_H2_out + moles_CO_out + moles_CO2_out + moles_CH4_out + moles_N2_out
 
@@ -663,7 +593,7 @@ st.markdown(f"""
         <p class="results-p"><span class="results-label">Biomasa Consumida (total):</span> <span class="results-value">{total_biomass_consumed:.2f} kg</span></p>
         <p class="results-p"><span class="results-label">Energía Total de Biomasa:</span> <span class="results-value">{total_biomass_energy:.2f} MJ</span></p>
         <p class="results-p"><span class="results-label">**Eficiencia de Conversión de Carbono (CCE):**</span> <span class="results-value">{carbon_conversion_efficiency_calc:.2%}</span></p>
-        <p class="results-p"><span class="results-label">Carbono No Convertido (Char):</span> <span class="results-value">{moles_C_unconverted_out * MW_C:.2f} kg/h</span></p>
+        <p class="results-p"><span class="results-label">Carbono No Convertido (Char) producido:</span> <span class="results-value">{moles_C_unconverted_out * MW_C:.2f} kg/h</span></p>
         <p class="results-p"><span class="results-label">**Eficiencia de Gasificación (energética):**</span> <span class="results-value">{gasification_efficiency_calc:.2%}</span></p>
         <p class="results-p"><span class="results-label">Energía en Syngas Producido:</span> <span class="results-value">{energy_in_syngas:.2f} MJ</span></p>
         <p class="results-p"><span class="results-label">Volumen de Syngas Producido:</span> <span class="results-value">{volume_syngas_produced_calc * hours_operated:.2f} Nm³</span></p>
@@ -762,40 +692,8 @@ with st.expander("Ecuaciones utilizadas"):
         K_{p, \text{Metanación}} = \frac{X_{\text{CH}_4} \cdot X_{\text{H}_2\text{O}}}{X_{\text{CO}} \cdot X_{\text{H}_2}^3} \cdot \left(\frac{P_{\text{total}}}{P_{\text{ref}}}\right)^2 \quad \text{ (con } P_{\text{ref}} = 1 \text{ atm)}
     ''')
 
-    st.markdown("#### d) Reacción de Gas de Agua (con Carbono Sólido)")
-    st.latex(r'''
-        \text{C (sólido)} + \text{H}_2\text{O} \rightleftharpoons \text{CO} + \text{H}_2
-    ''')
-    st.markdown("La constante de equilibrio $K_p$ para esta reacción se calcula a partir de $\Delta G^\circ = 131340 - 134.1 \cdot T_k$ (en J/mol):")
-    st.latex(r'''
-        K_p = \exp\left(-\frac{131340 - 134.1 \cdot T_k}{R \cdot T_k}\right)
-    ''')
-    st.markdown("La ecuación de equilibrio en términos de fracciones molares y presión total es:")
-    st.latex(r'''
-        K_{p, \text{C-H}_2\text{O}} = \frac{X_{\text{CO}} \cdot X_{\text{H}_2}}{X_{\text{H}_2\text{O}}} \cdot \frac{P_{\text{ref}}}{P_{\text{total}}} \quad \text{ (con } P_{\text{ref}} = 1 \text{ atm)}
-    ''')
-
-    st.markdown("#### e) Reacción de Metanación Directa (con Carbono Sólido)")
-    st.latex(r'''
-        \text{C (sólido)} + 2\text{H}_2 \rightleftharpoons \text{CH}_4
-    ''')
-    st.markdown("La constante de equilibrio $K_p$ para esta reacción se calcula a partir de $\Delta G^\circ = -74850 - 12.08 \cdot T_k$ (en J/mol):")
-    st.latex(r'''
-        K_p = \exp\left(-\frac{-74850 - 12.08 \cdot T_k}{R \cdot T_k}\right)
-    ''')
-    st.markdown("La ecuación de equilibrio en términos de fracciones molares y presión total es:")
-    st.latex(r'''
-        K_{p, \text{C-CH}_4} = \frac{X_{\text{CH}_4}}{X_{\text{H}_2}^2} \cdot \frac{P_{\text{total}}}{P_{\text{ref}}} \quad \text{ (con } P_{\text{ref}} = 1 \text{ atm)}
-    ''')
-
-    st.markdown("El sistema de ecuaciones no lineales resuelto por `fsolve` incluye los balances atómicos de C, H, O y tres ecuaciones de equilibrio termodinámico. Un conjunto común de **tres reacciones de equilibrio linealmente independientes** para este tipo de sistemas, asumiendo la presencia de carbono sólido y vapor, es:")
-    st.markdown("""
-    * **Reacción de Desplazamiento de Gas de Agua (WGSR)**
-    * **Reacción de Boudouard**
-    * **Reacción de Metanación (desde CO)**
-    """)
+    st.markdown("El sistema de ecuaciones no lineales resuelto por `fsolve` incluye los balances atómicos de C, H, O y **tres ecuaciones de equilibrio termodinámico principales**: la Reacción de Desplazamiento de Gas de Agua (WGSR), la Reacción de Boudouard y la Reacción de Metanación (desde CO).")
     st.markdown("Estas ecuaciones, junto con los balances de masa atómicos, forman un sistema de 6 ecuaciones que se resuelve numéricamente para encontrar los moles de cada componente del syngas y el carbono no convertido (char).")
-
 
     st.subheader("3. Cálculo de Fracciones Molares del Syngas")
     st.markdown("""

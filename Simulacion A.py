@@ -50,7 +50,7 @@ def calculate_k_boudouard(T_k):
     Calcula la constante de equilibrio (Kp) para la reacción de Boudouard.
     C + CO2 <=> 2CO
     Fuente: Adaptado de varias fuentes, basado en delta G.
-    log10(Kp) = 8.775 - (9013/T) - 1.144 log10(T) + 2.06*10^-4 T - 1.57*10^-7 T^2 + 4.97*10^-11 T^3
+    log10(Kp) = 8.775 - (9013/T) - 1.144 log10(T) + 2.06*10^-4 T - 1.57*10^-7 T^3 + 4.97*10^-11 T^3
     Convertir a ln(Kp) y base e.
     """
     # Usando una correlación simplificada para Boudouard
@@ -371,12 +371,7 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
         n_H2, n_CO, n_CO2, n_CH4, n_H2O = n
         
         # Asegurarse de que las moles no sean negativas para el cálculo de fracciones
-        # fsolve puede dar valores negativos, pero luego los corregimos.
-        # Para el cálculo de Kp, es mejor trabajar con valores absolutos si el solver
-        # produce negativos intermedios, aunque idealmente, no debería salir de la región positiva.
-        
-        # Para evitar log(negativo) o divisiones por cero en Kp,
-        # podemos establecer un valor mínimo pequeño para las moles
+        # fsolve puede dar valores negativos, pero para los cálculos de Kp necesitamos positivos.
         epsilon = 1e-9
         n_H2_pos = max(epsilon, n_H2)
         n_CO_pos = max(epsilon, n_CO)
@@ -384,24 +379,15 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
         n_CH4_pos = max(epsilon, n_CH4)
         n_H2O_pos = max(epsilon, n_H2O)
 
-        # Moles totales de gases para fracciones molares (parcialmente, sin N2 aún)
+        # Moles totales de gases para fracciones molares
         total_moles_gases = n_H2_pos + n_CO_pos + n_CO2_pos + n_CH4_pos + n_H2O_pos + moles_N2_out
         
-        # Fracciones molares (basadas en moles_pos para evitar problemas con log)
+        # Fracciones molares
         X_H2 = n_H2_pos / total_moles_gases
         X_CO = n_CO_pos / total_moles_gases
         X_CO2 = n_CO2_pos / total_moles_gases
         X_CH4 = n_CH4_pos / total_moles_gases
         X_H2O = n_H2O_pos / total_moles_gases
-
-        # Presiones parciales (para Kp que usan presiones)
-        # Assuming Kp's are defined using partial pressures in bar or atm
-        # P_i = X_i * P_total
-        P_H2 = X_H2 * P_atm
-        P_CO = X_CO * P_atm
-        P_CO2 = X_CO2 * P_atm
-        P_CH4 = X_CH4 * P_atm
-        P_H2O = X_H2O * P_atm
 
         # Constantes de equilibrio a la temperatura de gasificación
         Kp_wgsr = calculate_k_wgsr(T_k)
@@ -410,7 +396,7 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
         
         # Ecuaciones del sistema:
         # 1. Balance de Carbono (C)
-        eq_C = (n_CO + n_CO2 + n_CH4) - (total_moles_C_in - moles_C_unconverted) # Carbono convertido debe ser distribuido entre CO, CO2, CH4
+        eq_C = (n_CO + n_CO2 + n_CH4) - (total_moles_C_in - moles_C_unconverted)
 
         # 2. Balance de Hidrógeno (H)
         eq_H = (2 * n_H2 + 4 * n_CH4 + 2 * n_H2O) - total_moles_H_in
@@ -419,26 +405,29 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
         eq_O = (n_CO + 2 * n_CO2 + n_H2O) - total_moles_O_in
 
         # 4. Equilibrio de WGSR: CO + H2O <=> CO2 + H2
-        # Kp_wgsr = (P_CO2 * P_H2) / (P_CO * P_H2O)
-        # Reorganizamos: P_CO2 * P_H2 - Kp_wgsr * P_CO * P_H2O = 0
-        eq_wgsr = (X_CO2 * X_H2) - (Kp_wgsr * X_CO * X_H2O) # Usamos fracciones molares ya que P_total cancela
+        # Kp_wgsr = (X_CO2 * X_H2) / (X_CO * X_H2O)
+        eq_wgsr = (X_CO2 * X_H2) - (Kp_wgsr * X_CO * X_H2O)
 
         # 5. Equilibrio de Metanación: CO + 3H2 <=> CH4 + H2O
-        # Kp_methanation = (P_CH4 * P_H2O) / (P_CO * P_H2^3)
-        # Reorganizamos: P_CH4 * P_H2O - Kp_methanation * P_CO * P_H2^3 = 0
-        eq_methanation = (X_CH4 * X_H2O) - (Kp_methanation * X_CO * (X_H2**3) * (P_atm**(-2))) # P_atm^-2 para Kp basado en presiones parciales con P total
+        # Kp_methanation = (X_CH4 * X_H2O) / (X_CO * X_H2^3) * (1/P_total^2) si Kp usa presiones parciales
+        # Si Kp está dado para fracciones molares, entonces es directo. Si está para presiones parciales,
+        # Kp_molar_frac = Kp_pressure / (P_total^(delta_n_gas))
+        # Para CO + 3H2 <=> CH4 + H2O, delta_n_gas = (1+1) - (1+3) = 2 - 4 = -2
+        # Kp_molar_frac = Kp_pressure * P_total^2
+        # Ajustamos el término de presión total en la ecuación de equilibrio si Kp es de presiones parciales.
+        # Asumiendo que calculate_k_methanation devuelve Kp basado en presiones parciales en atm.
+        eq_methanation = (X_CH4 * X_H2O) - (Kp_methanation * X_CO * (X_H2**3) * (P_atm**(-2))) # P_atm^-2 porque delta_n = -2
 
         return [eq_C, eq_H, eq_O, eq_wgsr, eq_methanation]
 
     # Valores iniciales para el solver (aproximación, pueden ser refinados)
-    # Es crucial que las moles no sean negativas inicialmente.
-    # Intentamos con valores razonables para un syngas
-    initial_guess = [0.1, 0.2, 0.1, 0.05, 0.1] # H2, CO, CO2, CH4, H2O (fracciones o moles relativas)
-    initial_guess_moles = [val * total_moles_C_in / 0.4 for val in initial_guess] # Escalar a moles estimadas
+    # Deben ser moles, no fracciones.
+    # Intentamos con valores razonables de moles de salida para una primera aproximación.
+    # La suma de estos moles debe ser consistente con la escala de moles_C_converted
+    initial_guess_moles = np.array([0.1, 0.2, 0.1, 0.05, 0.1]) * moles_C_converted * 5 # Multiplicador heurístico para escalar
 
     # Resolver el sistema de ecuaciones
     try:
-        # Limitar los valores para que no sean negativos
         sol = fsolve(equations, initial_guess_moles, args=(total_moles_C_in, total_moles_H_in, total_moles_O_in,
                                                        moles_C_unconverted, moles_N2_out, T_k, P_atm))
         
@@ -512,7 +501,7 @@ mass_co2_produced = moles_co2_produced_from_syngas * MW_CO2
 # --- Mostrar los resultados calculados ---
 st.markdown(f"""
     <div class="results-container">
-        <p class="results-p"><span class="results-label">Biomasa Consumida (total):</span> <span class="results-value">{total_biomasa_consumed:.2f} kg</span></p>
+        <p class="results-p"><span class="results-label">Biomasa Consumida (total):</span> <span class="results-value">{total_biomass_consumed:.2f} kg</span></p>
         <p class="results-p"><span class="results-label">Energía Total de Biomasa:</span> <span class="results-value">{total_biomass_energy:.2f} MJ</span></p>
         <p class="results-p"><span class="results-label">**Eficiencia de Gasificación (calculada):**</span> <span class="results-value">{gasification_efficiency_calc:.2%}</span></p>
         <p class="results-p"><span class="results-label">Energía en Syngas Producido:</span> <span class="results-value">{energy_in_syngas:.2f} MJ</span></p>
@@ -712,14 +701,3 @@ with st.expander("Ecuaciones utilizadas"):
     * $\text{Masa Molar}_{\text{CO}_2}$ es la masa molar del dióxido de carbono (44 kg/kmol).
     * Estas ecuaciones asumen que todo el CO y CH$_4$ en el syngas se convierten completamente en CO$_2$ durante la combustión.
     """)
-
----
-
-### Notas sobre la Implementación:
-
-* **Solver Numérico (`fsolve`)**: Hemos definido una función `equations` que toma las moles de los componentes del syngas como incógnitas y devuelve una lista de los "residuos" de las ecuaciones (es decir, cuánto se desvían de cero). `fsolve` intenta encontrar los valores de las incógnitas que hacen que todos los residuos sean cero.
-* **Initial Guess**: El `initial_guess` es una estimación inicial de las moles de los componentes. La calidad de esta estimación puede afectar la convergencia del solver. He puesto un valor inicial más "inteligente" basado en la entrada de carbono para darle una mejor oportunidad de converger.
-* **Manejo de Valores Negativos**: Es posible que `fsolve`, en ciertas condiciones, devuelva valores negativos para las moles si no puede encontrar una solución real o si los parámetros de entrada son inconsistentes. He añadido `max(0, ...)` después de la solución para asegurar que las moles finales siempre sean no negativas. También se incluyó un pequeño `epsilon` para evitar divisiones por cero o logaritmos de cero al calcular las fracciones molares dentro de la función `equations`.
-* **Unidades de Presión para $K_p$**: Las constantes de equilibrio ($K_p$) suelen estar definidas en términos de presiones parciales relativas a una presión de referencia (generalmente 1 bar o 1 atm). He añadido una conversión `P_atm = gasification_pressure / 1.01325` para alinear la presión del sistema con la base de las $K_p$. La ecuación de $K_p$ para Boudouard y Metanación ha sido ajustada para incluir el término de presión total.
-
-Con estos cambios, el modelo debería ofrecer resultados mucho más realistas y estar mejor alineado con la bibliografía de gasificación. ¡Pruébalo y dime qué te parecen los nuevos resultados!

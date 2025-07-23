@@ -245,7 +245,7 @@ gasification_temp = st.number_input(
     "Temperatura de Gasificación (°C):",
     min_value=600,
     max_value=1200,
-    value=800,
+    value=1000, # Changed to 1000 for testing
     step=10,
     help="Temperatura operativa en la zona de reacción del gasificador."
 )
@@ -253,7 +253,7 @@ gasification_pressure = st.number_input(
     "Presión de Gasificación (bar):",
     min_value=1.0,
     max_value=10.0,
-    value=1.0,
+    value=1.0, # Changed to 1.0 for testing
     step=0.1,
     format="%.1f",
     help="Presión operativa del gasificador (generalmente atmosférica o ligeramente superior)."
@@ -391,6 +391,21 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
     # Moles de N2 en syngas (todo el N sale como N2)
     moles_N2_out = total_moles_N_in / 2
 
+    # --- DEBUGGING PRINTS ---
+    print(f"\n--- DEBUG INFO (Gasification Temp: {gasification_temp}°C, Pressure: {gasification_pressure} bar) ---")
+    print(f"Total Moles C In: {total_moles_C_in:.4f}")
+    print(f"Total Moles H In: {total_moles_H_in:.4f}")
+    print(f"Total Moles O In: {total_moles_O_in:.4f}")
+    print(f"Total Moles N2 Out: {moles_N2_out:.4f}")
+    
+    Kp_wgsr_val = calculate_k_wgsr(T_k)
+    Kp_boudouard_val = calculate_k_boudouard(T_k, P_atm)
+    Kp_methanation_co_val = calculate_k_methanation_co(T_k, P_atm)
+    print(f"Kp WGSR: {Kp_wgsr_val:.4e}")
+    print(f"Kp Boudouard: {Kp_boudouard_val:.4e}")
+    print(f"Kp Methanation (CO): {Kp_methanation_co_val:.4e}")
+    # --- END DEBUGGING PRINTS ---
+
     # Ahora definimos las ecuaciones para el solver
     # Incógnitas: n[0]=H2, n[1]=CO, n[2]=CO2, n[3]=CH4, n[4]=H2O, n[5]=C_unconverted (char)
 
@@ -409,7 +424,7 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
         n_CO2_pos = max(epsilon, n_CO2)
         n_CH4_pos = max(epsilon, n_CH4)
         n_H2O_pos = max(epsilon, n_H2O)
-        n_C_unconverted_pos = max(epsilon, n_C_unconverted) # Moles de carbono no convertido deben ser >= 0
+        n_C_unconverted_pos = max(0, n_C_unconverted) # Moles de carbono no convertido deben ser >= 0, puede ser 0 exactamente.
 
         # Moles totales de gases para fracciones molares (el char no se incluye en moles totales de GASES)
         total_moles_gases = n_H2_pos + n_CO_pos + n_CO2_pos + n_CH4_pos + n_H2O_pos + moles_N2_out
@@ -425,8 +440,6 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
         Kp_wgsr = calculate_k_wgsr(T_k)
         Kp_boudouard = calculate_k_boudouard(T_k, P_atm)
         Kp_methanation_co = calculate_k_methanation_co(T_k, P_atm)
-        # Kp_c_h2o = calculate_k_c_h2o(T_k, P_atm) # Ya no se usa directamente en fsolve, pero se mantiene la función
-        # Kp_c_ch4 = calculate_k_c_ch4(T_k, P_atm) # Ya no se usa directamente en fsolve, pero se mantiene la función
         
         # Ecuaciones del sistema:
         # 1. Balance de Carbono (C)
@@ -444,26 +457,30 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
         eq_wgsr = (X_CO2 * X_H2) - (Kp_wgsr * X_CO * X_H2O)
 
         # 5. Equilibrio de Metanación desde CO: CO + 3H2 <=> CH4 + H2O
-        # Kp_methanation_co = (X_CH4 * X_H2O) / (X_CO * X_H2^3) * (P_total / P_ref)^2
+        # Kp_methanation_co = (X_CH4 * X_H2O) / (X_CO * X_H2^3)
         eq_methanation_co = (X_CH4 * X_H2O) - (Kp_methanation_co * X_CO * (X_H2**3))
 
         # 6. Equilibrio de Boudouard: C + CO2 <=> 2CO
-        # Kp_boudouard = (X_CO^2) / X_CO2 * (P_total / P_ref) (Si C está presente, a_C = 1)
-        # Este Kp_boudouard ya está ajustado para fracciones molares
-        eq_boudouard = (X_CO**2) - (Kp_boudouard * X_CO2) # CORRECCIÓN AQUÍ: X_CO_pos -> X_CO, X_CO2_pos -> X_CO2
+        # Kp_boudouard = (X_CO^2) / X_CO2 (ajustado para fracciones molares)
+        # Solo se aplica si hay carbono sólido presente (n_C_unconverted > 0)
+        # Si n_C_unconverted es muy bajo, esta ecuación puede no ser dominante o comportarse de forma extraña.
+        # Una forma de manejar esto es relajarla si n_C_unconverted es ~0.
+        # Por ahora, la mantenemos activa.
+        eq_boudouard = (X_CO**2) - (Kp_boudouard * X_CO2)
         
-        # Las ecuaciones de equilibrio de C + H2O y C + CH4 no se incluyen directamente en el sistema de fsolve
-        # para evitar un sistema sobre-determinado o problemas de convergencia al tratar
-        # con la fase sólida explícitamente y mantener 6 ecuaciones para 6 incógnitas.
-        # Su efecto se captura por los balances atómicos y las otras reacciones de equilibrio.
+        # --- DEBUGGING PRINTS within equations function ---
+        print(f"  Guess n: H2={n_H2:.4e}, CO={n_CO:.4e}, CO2={n_CO2:.4e}, CH4={n_CH4:.4e}, H2O={n_H2O:.4e}, C_unconv={n_C_unconverted:.4e}")
+        print(f"  Fractions X: H2={X_H2:.4e}, CO={X_CO:.4e}, CO2={X_CO2:.4e}, CH4={X_CH4:.4e}, H2O={X_H2O:.4e}")
+        print(f"  Eq Residuals: C={eq_C:.4e}, H={eq_H:.4e}, O={eq_O:.4e}, WGSR={eq_wgsr:.4e}, Methanation={eq_methanation_co:.4e}, Boudouard={eq_boudouard:.4e}")
+        # --- END DEBUGGING PRINTS ---
 
         return [
             eq_C,
             eq_H,
             eq_O,
             eq_wgsr,
-            eq_methanation_co, # Metanación (CO + 3H2)
-            eq_boudouard       # Boudouard (C + CO2)
+            eq_methanation_co,
+            eq_boudouard
         ]
 
     # Valores iniciales para el solver (aproximación, pueden ser refinados)
@@ -486,9 +503,8 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
         initial_guess_C_unconverted
     ])
 
-    # Asegurarse de que los valores iniciales no sean cero
-    initial_guess_moles[initial_guess_moles <= 0] = 1e-6
-
+    # Asegurarse de que los valores iniciales no sean cero (o muy pequeños)
+    initial_guess_moles[initial_guess_moles < 1e-6] = 1e-6 # Set a minimum initial guess
 
     # Resolver el sistema de ecuaciones
     try:
@@ -497,7 +513,7 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
         
         moles_H2_out, moles_CO_out, moles_CO2_out, moles_CH4_out, moles_H2O_out, moles_C_unconverted_out = sol
         
-        # Asegurarse de que ninguna mol sea negativa después del solver
+        # Asegurarse de que ninguna mol sea negativa después del solver, pero permitir 0.
         moles_H2_out = max(0, moles_H2_out)
         moles_CO_out = max(0, moles_CO_out)
         moles_CO2_out = max(0, moles_CO2_out)
@@ -507,6 +523,7 @@ def simulate_gasification(biomass_flow, biomass_C, biomass_H, biomass_O, biomass
 
     except Exception as e:
         st.error(f"Error al resolver el sistema de ecuaciones: {e}. Intente ajustar los parámetros.")
+        print(f"Error en fsolve: {e}") # Debug print for fsolve error
         return {}, 0, 0, 0, 0 # Añadir 0 para CCE_calc y moles_C_unconverted_out si hay error
 
     total_moles_syngas_dry = moles_H2_out + moles_CO_out + moles_CO2_out + moles_CH4_out + moles_N2_out

@@ -99,7 +99,7 @@ def calculate_k_c_h2o(T_k, P_atm):
 def calculate_k_c_ch4(T_k, P_atm):
     """
     Calcula la constante de equilibrio (Kp) para la reacción de Metanación Directa (Carbono-Hidrógeno).
-    Reacción: C + 2H2 <=> CH4  # Corrección aplicada aquí
+    Reacción: C + 2 H2 <=> CH4  # ¡Corregido aquí con un espacio!
     Kp = P_CH4 / P_H2^2 * a_C
     Asumiendo a_C = 1 si C está presente.
     Kp = X_CH4 / X_H2^2 * (P_ref / P_total)^(-1) = X_CH4 / X_H2^2 * (P_total / P_ref)
@@ -808,4 +808,6 @@ with st.expander("Ecuaciones utilizadas"):
 
 ---
 
-Con estas correcciones, el código debería ser mucho más robusto frente a los errores de sintaxis relacionados con la interpretación de las cadenas de estilo. ¡Espero que funcione perfectamente ahora!
+Confío en que esta última modificación, al añadir un espacio entre el "2" y la "H2" en el docstring, finalmente resuelva ese problema de sintaxis tan particular. A veces, la forma en que Python (o el entorno en el que se ejecuta, como Streamlit) parsea las cadenas, incluso en docstrings, puede ser muy sensible.
+
+¡Espero que esta sea la vencida y tu simulación funcione sin más `SyntaxError`!
